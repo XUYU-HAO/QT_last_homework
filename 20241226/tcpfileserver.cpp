@@ -79,6 +79,7 @@ void TcpFileServer::start()
     }
 
     QMessageBox::information(this, "成功", "伺服器已啟動，等待連線中...");
+        emit serverCreated(); // 觸發信號
 }
 
 void TcpFileServer::acceptConnection()

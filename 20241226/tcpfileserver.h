@@ -14,6 +14,8 @@ class TcpFileServer : public QDialog
 public:
     explicit TcpFileServer(QWidget *parent = nullptr);
     ~TcpFileServer();
+signals:
+    void serverCreated(); // 添加這行
 
 private slots:
     void start();
