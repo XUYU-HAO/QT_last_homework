@@ -3,13 +3,24 @@
 TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
     : QWidget(parent), sender(new TcpFileSender(this)), receiver(new TcpFileServer(this))
 {
+    // 設置主窗口大小
+    setFixedSize(450, 250);
+
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
     QPushButton *teacherButton = new QPushButton(QStringLiteral("老師端"), this);
     QPushButton *studentButton = new QPushButton(QStringLiteral("學生端"), this);
 
-    mainLayout->addWidget(teacherButton);
-    mainLayout->addWidget(studentButton);
+    // 設置按鈕大小
+    teacherButton->setFixedSize(200, 200);
+    studentButton->setFixedSize(200, 200);
+
+    // 設置按鈕為左右排列
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->addWidget(teacherButton);
+    buttonLayout->addWidget(studentButton);
+
+    mainLayout->addLayout(buttonLayout);
 
     setLayout(mainLayout);
     setWindowTitle(QStringLiteral("選擇模式"));
