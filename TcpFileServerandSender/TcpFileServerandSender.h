@@ -12,6 +12,7 @@ class TcpFileServerandSender : public QWidget
 public:
     explicit TcpFileServerandSender(QWidget *parent = nullptr);
 
+
 private slots:
     void startTeacherMode();
     void startStudentMode();

@@ -53,6 +53,24 @@ TcpFileSender::TcpFileSender(QWidget *parent)
 TcpFileSender::~TcpFileSender()
 {
 }
+void TcpFileSender::sendStudentAnswer(const QString &answer)
+{
+    if (tcpClient.state() == QAbstractSocket::ConnectedState) {
+        QByteArray block;
+        QDataStream out(&block, QIODevice::WriteOnly);
+        out.setVersion(QDataStream::Qt_4_6);
+
+        // 將答案寫入資料流
+        out << QString("answer") << answer;
+
+        // 發送資料
+        tcpClient.write(block);
+        tcpClient.flush();
+        qDebug() << "已發送學生答案:" << answer;
+    } else {
+        qDebug() << "未連線至伺服器，無法發送答案。";
+    }
+}
 QTcpSocket* TcpFileSender::getTcpClient()
 {
     return &tcpClient; // 返回指向 tcpClient 的指針

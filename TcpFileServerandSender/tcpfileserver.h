@@ -19,6 +19,7 @@ public:
 
 signals:
 
+    void studentAnswerReceived(const QString &studentId, const QString &answer);
     void studentConnected(const QString &studentId); // 當學生連線時發送學號
     void studentDisconnected(const QString &studentId); // 當學生斷線時發送學號
     void serverStarted();  // 定義 serverStarted 信號

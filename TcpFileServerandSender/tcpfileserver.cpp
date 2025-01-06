@@ -111,23 +111,43 @@ void TcpFileServer::readClientData()
     QDataStream in(clientConnection);
     in.setVersion(QDataStream::Qt_4_6);
 
-    QString username;
-    QString password;
+    QString messageType;
+    in >> messageType;
 
-    in >> username >> password; // 讀取帳號和密碼
+    if (messageType == "login") {
+        QString username;
+        QString password;
 
-    qDebug() << "接收到帳號：" << username;
-    qDebug() << "接收到密碼：" << password;
+        in >> username >> password; // 讀取帳號和密碼
 
-    clientConnection->setProperty("studentId", username); // 設定學號屬性
-    emit studentConnected(username); // 發送學生連線信號
+        qDebug() << "接收到帳號：" << username;
+        qDebug() << "接收到密碼：" << password;
 
-    // 檢查帳號是否符合條件
-    if (username.left(6) == "412431") { // 只檢查前六碼
-        emit studentConnected(username); // 發送學生連線信號
-        clientConnection->write("success"); // 回應成功
-    } else {
-        clientConnection->write("failure"); // 回應失敗
+        clientConnection->setProperty("studentId", username); // 設定學號屬性
+
+        // 檢查帳號是否符合條件
+        if (username.left(6) == "412431") { // 只檢查前六碼
+            emit studentConnected(username); // 發送學生連線信號
+            clientConnection->write("success"); // 回應成功
+        } else {
+            clientConnection->write("failure"); // 回應失敗
+        }
+
+    } else if (messageType == "answer") {
+        QString answer;
+        in >> answer;
+
+        // 獲取學生學號
+        QString studentId = clientConnection->property("studentId").toString();
+        if (studentId.isEmpty()) {
+            qWarning() << "未能獲取學生學號，無法處理答案";
+            return;
+        }
+
+        qDebug() << "收到學生答案，學號：" << studentId << " 答案：" << answer;
+
+        // 發送答案到 UI 或其他處理
+        emit studentAnswerReceived(studentId, answer);
     }
 }
 

@@ -18,6 +18,8 @@ public:
     explicit TcpFileSender(QWidget *parent = nullptr);
     ~TcpFileSender();
 
+    // 新增用於傳送學生答案的函式
+    void sendStudentAnswer(const QString &answer);
     QTcpSocket* getTcpClient(); // 公有方法，返回 tcpClient 指針
 
 private slots:

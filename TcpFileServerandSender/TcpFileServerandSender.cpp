@@ -198,12 +198,20 @@ void TcpFileServerandSender::startStudentMode()
         questionLabel->setStyleSheet("font-size: 18px; margin: 10px;");
         mainLayout->addWidget(questionLabel);
 
-        // 顯示選項
+        // 顯示選項按鈕
         QGridLayout *optionsLayout = new QGridLayout();
         for (int i = 0; i < optionsText.size(); ++i) {
-            QLabel *optionLabel = new QLabel(optionsText[i], fullScreenWindow);
-            optionLabel->setStyleSheet("font-size: 16px;");
-            optionsLayout->addWidget(optionLabel, i / 2, i % 2);  // 兩列顯示
+            QPushButton *optionButton = new QPushButton(optionsText[i], fullScreenWindow);
+            optionButton->setStyleSheet("font-size: 16px; padding: 10px;");
+            optionsLayout->addWidget(optionButton, i / 2, i % 2);  // 兩列顯示
+
+            // 綁定每個按鈕的點擊事件
+            connect(optionButton, &QPushButton::clicked, this, [this, i]() {
+                qDebug() << "學生選擇了選項:" << optionsText[i];
+
+                // 在此處可加入與伺服器交互的邏輯，將學生的選擇發送回伺服器
+                sender->sendStudentAnswer(optionsText[i]);  // 需在 TcpFileSender 中實現此功能
+            });
         }
 
         mainLayout->addLayout(optionsLayout);
