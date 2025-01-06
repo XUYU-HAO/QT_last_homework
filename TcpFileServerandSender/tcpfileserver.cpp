@@ -1,4 +1,4 @@
-﻿#include "tcpfileserver.h"
+#include "tcpfileserver.h"
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QHostAddress>
@@ -78,8 +78,9 @@ void TcpFileServer::start()
     // 伺服器啟動成功，發送信號
     emit serverStarted(); // 這裡觸發 serverStarted 信號
 
-    QMessageBox::information(this, "成功", "伺服器已啟動，等待連線中...");
-    qDebug() << "伺服器啟動成功，IP:" << ipAddress << "Port:" << port;
+    QString courseName = courseNameLineEdit->text(); // 取得課程名稱
+    QMessageBox::information(this, "成功", QString("伺服器已啟動，等待連線中...\n課程名稱: %1").arg(courseName));
+    qDebug() << "伺服器啟動成功，IP:" << ipAddress << "Port:" << port << "課程名稱:" << courseName;
 }
 
 void TcpFileServer::acceptConnection()
