@@ -60,6 +60,7 @@ void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
     courseNameLabel->setAlignment(Qt::AlignCenter);
     courseNameLabel->setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 20px;");
     layout->addWidget(courseNameLabel);
+
     fullScreenWindow->setStyleSheet("background-color: white;");
     fullScreenWindow->setLayout(layout);
     fullScreenWindow->showFullScreen();

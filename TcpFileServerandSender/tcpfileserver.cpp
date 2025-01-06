@@ -17,11 +17,12 @@ TcpFileServer::TcpFileServer(QWidget *parent)
     QLabel *ipLabel = new QLabel("伺服器 IP:");
     ipLineEdit = new QLineEdit;
     ipLineEdit->setPlaceholderText("請輸入伺服器 IP 地址");
+    ipLineEdit->setText("127.0.0.1"); // 預設為本地測試IP
 
     QLabel *portLabel = new QLabel("伺服器端口:");
     portLineEdit = new QLineEdit;
     portLineEdit->setPlaceholderText("請輸入伺服器端口號");
-    portLineEdit->setText("16998");
+    portLineEdit->setText("17000"); // 預設端口號
 
     startButton = new QPushButton("創建伺服器");
     returnButton = new QPushButton("返回");
@@ -45,10 +46,6 @@ TcpFileServer::TcpFileServer(QWidget *parent)
     connect(returnButton, &QPushButton::clicked, this, &TcpFileServer::close);
     connect(&tcpServer, &QTcpServer::newConnection, this, &TcpFileServer::acceptConnection);
     connect(&tcpServer, &QTcpServer::acceptError, this, &TcpFileServer::displayError);
-    connect(startButton, &QPushButton::clicked, this, [this]() {
-        setCourseName(courseNameLineEdit->text()); // 使用正確的變數名稱
-        emit serverStarted(); // 發送伺服器啟動信號
-    });
 }
 
 TcpFileServer::~TcpFileServer()
@@ -63,30 +60,33 @@ void TcpFileServer::start()
     QString ipAddress = ipLineEdit->text();
     quint16 port = portLineEdit->text().toUInt();
 
-    if (ipAddress.isEmpty() || port == 0) {
-        QMessageBox::warning(this, "輸入錯誤", "請輸入有效的 IP 地址和端口號。");
+    // 驗證IP地址和端口號
+    if (ipAddress.isEmpty() || QHostAddress(ipAddress).isNull() || port < 1024 || port > 65535) {
+        QMessageBox::warning(this, "輸入錯誤", "請輸入有效的 IP 地址和端口號（1024-65535）。");
         startButton->setEnabled(true);
         return;
     }
 
-    while (!tcpServer.isListening() && !tcpServer.listen(QHostAddress(ipAddress), port)) {
-        QMessageBox::StandardButton ret = QMessageBox::critical(this,
-                                                                "伺服器錯誤",
-                                                                QString("無法啟動伺服器: %1.").arg(tcpServer.errorString()),
-                                                                QMessageBox::Retry | QMessageBox::Cancel);
-        if (ret == QMessageBox::Cancel) {
-            startButton->setEnabled(true);
-            return;
-        }
+    // 嘗試啟動伺服器
+    if (!tcpServer.listen(QHostAddress(ipAddress), port)) {
+        QMessageBox::critical(this, "伺服器錯誤",
+                              QString("無法啟動伺服器: %1").arg(tcpServer.errorString()));
+        startButton->setEnabled(true);
+        return;
     }
 
     QMessageBox::information(this, "成功", "伺服器已啟動，等待連線中...");
-    emit serverStarted(); // 發送伺服器已啟動的信號
+    qDebug() << "伺服器啟動成功，IP:" << ipAddress << "Port:" << port;
 }
 
 void TcpFileServer::acceptConnection()
 {
     QTcpSocket* clientConnection = tcpServer.nextPendingConnection();
+    if (!clientConnection) {
+        QMessageBox::warning(this, "錯誤", "無法接受連線！");
+        return;
+    }
+
     tcpConnections.append(clientConnection);
 
     connect(clientConnection, &QTcpSocket::readyRead, this, &TcpFileServer::readClientData);
