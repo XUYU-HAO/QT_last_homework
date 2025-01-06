@@ -116,23 +116,66 @@ void TcpFileServerandSender::startTeacherMode()
         contentLayout->addLayout(questionLayout);
 
         mainLayout->addLayout(contentLayout);
+
         // 監聽學生連線信號，更新表格
         connect(receiver, &TcpFileServer::studentConnected, this, [studentTable](const QString &studentId) {
-            int row = studentTable->rowCount();
-            studentTable->insertRow(row);
+            bool studentExists = false;
+            for (int row = 0; row < studentTable->rowCount(); ++row) {
+                QTableWidgetItem *idItem = studentTable->item(row, 0);  // 檢查學號欄位
+                if (idItem && idItem->text() == studentId) {
+                    studentExists = true;  // 學生已經在表格中
+                    break;
+                }
+            }
 
-            QTableWidgetItem *idItem = new QTableWidgetItem(studentId);
-            idItem->setTextAlignment(Qt::AlignCenter);
-            studentTable->setItem(row, 0, idItem);
+            // 如果學生不存在於表格中，則插入新一行
+            if (!studentExists) {
+                int row = studentTable->rowCount();  // 獲取當前表格的行數
+                studentTable->insertRow(row);  // 在表格中插入新的一行
 
-            QTableWidgetItem *scoreItem = new QTableWidgetItem("0");
-            scoreItem->setTextAlignment(Qt::AlignCenter);
-            studentTable->setItem(row, 1, scoreItem);
+                // 插入學生的學號
+                QTableWidgetItem *idItem = new QTableWidgetItem(studentId);
+                idItem->setTextAlignment(Qt::AlignCenter);  // 設置學號居中
+                studentTable->setItem(row, 0, idItem);
 
-            QTableWidgetItem *statusItem = new QTableWidgetItem("在線");
-            statusItem->setTextAlignment(Qt::AlignCenter);
-            studentTable->setItem(row, 2, statusItem);
+                // 插入學生的分數，預設為 0
+                QTableWidgetItem *scoreItem = new QTableWidgetItem("0");
+                scoreItem->setTextAlignment(Qt::AlignCenter);  // 設置分數居中
+                studentTable->setItem(row, 1, scoreItem);
+
+                // 插入學生的狀態，預設為 "在線"
+                QTableWidgetItem *statusItem = new QTableWidgetItem("在線");
+                statusItem->setTextAlignment(Qt::AlignCenter);  // 設置狀態居中
+                studentTable->setItem(row, 2, statusItem);
+            } else {
+                // 學生已經在線，更新狀態為 "在線"
+                for (int row = 0; row < studentTable->rowCount(); ++row) {
+                    QTableWidgetItem *idItem = studentTable->item(row, 0);
+                    if (idItem && idItem->text() == studentId) {
+                        QTableWidgetItem *statusItem = studentTable->item(row, 2);
+                        if (statusItem) {
+                            statusItem->setText("在線");
+                        }
+                        break;
+                    }
+                }
+            }
         });
+
+        // 監聽學生斷線信號，更新表格
+        connect(receiver, &TcpFileServer::studentDisconnected, this, [studentTable](const QString &studentId) {
+            for (int row = 0; row < studentTable->rowCount(); ++row) {
+                QTableWidgetItem *idItem = studentTable->item(row, 0);  // 檢查學號欄位
+                if (idItem && idItem->text() == studentId) {
+                    QTableWidgetItem *statusItem = studentTable->item(row, 2);  // 設置狀態欄位
+                    if (statusItem) {
+                        statusItem->setText("離線");  // 更新學生狀態為 "離線"
+                    }
+                    break;
+                }
+            }
+        });
+
         fullScreenWindow->setLayout(mainLayout);
         fullScreenWindow->setStyleSheet("background-color: white;");
         fullScreenWindow->showFullScreen();
