@@ -75,6 +75,9 @@ void TcpFileServer::start()
         return;
     }
 
+    // 伺服器啟動成功，發送信號
+    emit serverStarted(); // 這裡觸發 serverStarted 信號
+
     QMessageBox::information(this, "成功", "伺服器已啟動，等待連線中...");
     qDebug() << "伺服器啟動成功，IP:" << ipAddress << "Port:" << port;
 }
