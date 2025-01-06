@@ -14,7 +14,7 @@ class TcpFileServer : public QDialog
 public:
     explicit TcpFileServer(QWidget *parent = nullptr);
     ~TcpFileServer();
-
+    QList<QTcpSocket*> getClientConnections() const; // 獲取所有客戶端連線
     QString getCourseName() const { return courseNameLineEdit->text(); }
 
 signals:
@@ -27,6 +27,7 @@ signals:
 private slots:
     void start();
     void acceptConnection();
+
     void readClientData();
     void displayError(QAbstractSocket::SocketError socketError);
 

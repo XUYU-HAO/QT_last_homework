@@ -163,3 +163,7 @@ void TcpFileServer::displayError(QAbstractSocket::SocketError socketError)
         delete clientConnection;
     }
 }
+QList<QTcpSocket*> TcpFileServer::getClientConnections() const
+{
+    return tcpConnections; // 返回所有客戶端連線
+}
