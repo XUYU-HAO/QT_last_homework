@@ -45,8 +45,8 @@ TcpFileServer::TcpFileServer(QWidget *parent)
     connect(returnButton, &QPushButton::clicked, this, &TcpFileServer::close);
     connect(&tcpServer, &QTcpServer::newConnection, this, &TcpFileServer::acceptConnection);
     connect(&tcpServer, &QTcpServer::acceptError, this, &TcpFileServer::displayError);
-    connect(startButton, &QPushButton::clicked, this, [this, courseNameEdit]() {
-        setCourseName(courseNameEdit->text());
+    connect(startButton, &QPushButton::clicked, this, [this]() {
+        setCourseName(courseNameLineEdit->text()); // 使用正確的變數名稱
         emit serverStarted(); // 發送伺服器啟動信號
     });
 }

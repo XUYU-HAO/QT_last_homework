@@ -29,7 +29,7 @@ private slots:
     void readClientData();               // 讀取客戶端發送的數據
     void displayError(QAbstractSocket::SocketError socketError); // 處理錯誤
 
-private:
+private:    
     QTcpServer tcpServer;                // TCP 伺服器
     QList<QTcpSocket*> tcpConnections;   // 儲存所有客戶端連線
     QPushButton *startButton;            // 啟動伺服器按鈕
