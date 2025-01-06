@@ -47,6 +47,22 @@ void TcpFileServerandSender::startTeacherMode()
         courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
         layout->addWidget(courseNameLabel);
 
+        // 輸入題目的文字框
+        QLineEdit *questionInput = new QLineEdit(fullScreenWindow);
+        questionInput->setPlaceholderText(QStringLiteral("請輸入題目"));
+        questionInput->setStyleSheet("margin-top: 20px;");
+        layout->addWidget(questionInput);
+
+        // 新增選項的按鈕
+        QPushButton *addOptionButton = new QPushButton(QStringLiteral("新增選項"), fullScreenWindow);
+        addOptionButton->setFixedSize(100, 50);
+        layout->addWidget(addOptionButton);
+        layout->setAlignment(addOptionButton, Qt::AlignHCenter);
+
+        // 選項區域
+        QVBoxLayout *optionsLayout = new QVBoxLayout();
+        layout->addLayout(optionsLayout);
+
         // 關閉按鈕
         QPushButton *closeButton = new QPushButton(QStringLiteral("關閉"), fullScreenWindow);
         closeButton->setFixedSize(100, 50);
@@ -54,6 +70,13 @@ void TcpFileServerandSender::startTeacherMode()
         layout->setAlignment(closeButton, Qt::AlignHCenter);
 
         connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
+
+        // 動態添加選項
+        connect(addOptionButton, &QPushButton::clicked, fullScreenWindow, [optionsLayout]() {
+            QLineEdit *optionInput = new QLineEdit();
+            optionInput->setPlaceholderText(QStringLiteral("輸入選項內容"));
+            optionsLayout->addWidget(optionInput);
+        });
 
         fullScreenWindow->setStyleSheet("background-color: white;");
         fullScreenWindow->setLayout(layout);
@@ -92,8 +115,26 @@ void TcpFileServerandSender::startStudentMode()
         fullScreenWindow->showFullScreen();
     });
 }
-
 void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
 {
-    // 此函數已不再使用，邏輯移至 startTeacherMode 和 startStudentMode
+    QWidget *fullScreenWindow = new QWidget();
+    QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
+
+    // 顯示課程名稱
+    QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
+    courseNameLabel->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+    courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
+    layout->addWidget(courseNameLabel);
+
+    // 關閉按鈕
+    QPushButton *closeButton = new QPushButton(QStringLiteral("關閉"), fullScreenWindow);
+    closeButton->setFixedSize(100, 50);
+    layout->addWidget(closeButton);
+    layout->setAlignment(closeButton, Qt::AlignHCenter);
+
+    connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
+
+    fullScreenWindow->setStyleSheet("background-color: white;");
+    fullScreenWindow->setLayout(layout);
+    fullScreenWindow->showFullScreen();
 }
