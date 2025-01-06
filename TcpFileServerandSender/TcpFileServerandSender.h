@@ -2,20 +2,28 @@
 #define TCPFILESERVERANDSENDER_H
 
 #include <QWidget>
-#include "TcpFileSender.h"
-#include "TcpFileServer.h"
+#include <QTcpSocket>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QInputDialog>
+
+class TcpFileSender;
+class TcpFileServer;
 
 class TcpFileServerandSender : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit TcpFileServerandSender(QWidget *parent = nullptr);
+    TcpFileServerandSender(QWidget *parent = nullptr);
 
 private slots:
     void startTeacherMode();
     void startStudentMode();
-    void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
+    void switchToFullScreen(const QString &courseName);
 
 private:
     TcpFileSender *sender;
