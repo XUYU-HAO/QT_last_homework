@@ -140,14 +140,21 @@ void TcpFileServer::readClientData()
         in >> answer;
 
         QString studentId = clientConnection->property("studentId").toString();
-        if (!studentId.isEmpty()) {
-            emit studentAnswerReceived(studentId, answer); // 發送學生答案
+        if (studentId.isEmpty()) {
+            qWarning() << "未能獲取學生學號，無法處理答案";
+            return;
         }
 
-        qDebug() << "收到學生答案，學號：" << studentId << " 答案：" << answer;
+        qDebug() << "收到學生答案，學號：" << studentId << " 答案索引：" << answer;
 
-        // 發送答案到 UI 或其他處理
-        emit studentAnswerReceived(studentId, answer);
+        // 判斷答案是否正確
+        if (answer.toInt() == correctAnswerIndex) { // 如果答案正確
+            emit studentCorrectAnswer(studentId);  // 發送正確答案信號，攜帶學生學號
+            qDebug() << "學生學號" << studentId << "答對了！";
+        } else {
+            qDebug() << "學生學號" << studentId << "答錯了！";
+        }
+
     }
 }
 

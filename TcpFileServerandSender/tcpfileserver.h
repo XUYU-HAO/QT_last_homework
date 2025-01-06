@@ -23,6 +23,7 @@ signals:
     void studentConnected(const QString &studentId); // 當學生連線時發送學號
     void studentDisconnected(const QString &studentId); // 當學生斷線時發送學號
     void serverStarted();  // 定義 serverStarted 信號
+    void studentCorrectAnswer(const QString &studentId);
 
 private slots:
     void start();
@@ -32,6 +33,7 @@ private slots:
     void displayError(QAbstractSocket::SocketError socketError);
 
 private:
+    int correctAnswerIndex = -1; // 初始化為 -1 表示未設置
     QTcpServer tcpServer;
     QList<QTcpSocket*> tcpConnections;
     QLineEdit *courseNameLineEdit;
