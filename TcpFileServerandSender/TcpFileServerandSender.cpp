@@ -1,27 +1,24 @@
-#include "TcpFileSender.h"
-#include "TcpFileServer.h"
 #include "TcpFileServerandSender.h"
-#include <QInputDialog>
-#include <QComboBox>
-#include <QStackedWidget>
-#include <QPushButton>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QTextEdit>
 
 TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
     : QWidget(parent), sender(new TcpFileSender(this)), receiver(new TcpFileServer(this))
 {
-    // 设置主窗口大小
+    // 設置主窗口大小
     setFixedSize(450, 250);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
-    QPushButton *teacherButton = new QPushButton(QStringLiteral("老师端"), this);
-    QPushButton *studentButton = new QPushButton(QStringLiteral("学生端"), this);
+    QPushButton *teacherButton = new QPushButton(QStringLiteral("老師端"), this);
+    QPushButton *studentButton = new QPushButton(QStringLiteral("學生端"), this);
 
-    // 设置按钮大小
+    // 設置按鈕大小
     teacherButton->setFixedSize(200, 200);
     studentButton->setFixedSize(200, 200);
 
-    // 设置按钮为左右排列
+    // 設置按鈕為左右排列
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(teacherButton);
     buttonLayout->addWidget(studentButton);
@@ -29,7 +26,7 @@ TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
     mainLayout->addLayout(buttonLayout);
 
     setLayout(mainLayout);
-    setWindowTitle(QStringLiteral("选择模式"));
+    setWindowTitle(QStringLiteral("選擇模式"));
 
     connect(teacherButton, &QPushButton::clicked, this, &TcpFileServerandSender::startTeacherMode);
     connect(studentButton, &QPushButton::clicked, this, &TcpFileServerandSender::startStudentMode);
@@ -39,123 +36,99 @@ void TcpFileServerandSender::startTeacherMode()
 {
     receiver->show();
     connect(receiver, &TcpFileServer::serverStarted, this, [this]() {
-        // 从 TcpFileServer 获取课程名称并传递给全屏窗口
         QString courseName = receiver->getCourseName();
 
         this->close();
 
         QWidget *fullScreenWindow = new QWidget();
-        QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
+        QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
 
-        // 课程名称标签
+        // 上方課程名稱
         QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
-        courseNameLabel->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
-        courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
-        layout->addWidget(courseNameLabel);
+        courseNameLabel->setAlignment(Qt::AlignCenter);
+        courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin: 20px;");
+        mainLayout->addWidget(courseNameLabel);
 
-        // 输入题数的对话框
-        bool ok;
-        int questionCount = QInputDialog::getInt(fullScreenWindow, QStringLiteral("输入题数"),
-                                                 QStringLiteral("请输入题目数量:"), 1, 1, 100, 1, &ok);
-        if (!ok || questionCount <= 0) {
-            return;
+        // 左側學生表格
+        QTableWidget *studentTable = new QTableWidget(fullScreenWindow);
+        studentTable->setColumnCount(3);
+        studentTable->setHorizontalHeaderLabels(QStringList() << "學號" << "分數" << "狀態");
+        studentTable->horizontalHeader()->setStretchLastSection(true);
+        studentTable->verticalHeader()->setVisible(false);
+        studentTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        studentTable->setSelectionMode(QAbstractItemView::NoSelection);
+        studentTable->setFixedWidth(300);
+
+        // 中間題目輸入區
+        QVBoxLayout *questionLayout = new QVBoxLayout();
+        QLabel *questionLabel = new QLabel("題目輸入區", fullScreenWindow);
+        questionLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
+        QTextEdit *questionInput = new QTextEdit(fullScreenWindow);
+
+        questionLayout->addWidget(questionLabel);
+        questionLayout->addWidget(questionInput);
+
+        // 選項文字輸入框
+        QVBoxLayout *optionsLayout = new QVBoxLayout();
+        for (int i = 1; i <= 4; ++i) {
+            QLineEdit *optionInput = new QLineEdit(fullScreenWindow);
+            optionInput->setPlaceholderText(QStringLiteral("選項%1").arg(i));
+            optionsLayout->addWidget(optionInput);
         }
+        questionLayout->addLayout(optionsLayout);
 
-        // 使用 QStackedWidget 来实现分页
-        QStackedWidget *stackedWidget = new QStackedWidget(fullScreenWindow);
+        // 底部按鈕
+        QHBoxLayout *buttonLayout = new QHBoxLayout();
 
-        for (int i = 0; i < questionCount; ++i) {
-            // 每一页代表一个题目的输入
-            QWidget *page = new QWidget();
-            QVBoxLayout *pageLayout = new QVBoxLayout(page);
-
-            // 题目输入框
-            QLineEdit *questionInput = new QLineEdit(page);
-            questionInput->setPlaceholderText(QStringLiteral("请输入第 %1 题的题目").arg(i + 1));
-            pageLayout->addWidget(questionInput);
-
-            // 选项输入框
-            QVBoxLayout *optionsLayout = new QVBoxLayout();
-            QLabel *optionsLabel = new QLabel(QStringLiteral("输入选项 (共四个):"), page);
-            pageLayout->addWidget(optionsLabel);
-            for (int j = 0; j < 4; ++j) {
-                QLineEdit *optionInput = new QLineEdit(page);
-                optionInput->setPlaceholderText(QStringLiteral("选项 %1").arg(j + 1));
-                optionsLayout->addWidget(optionInput);
-            }
-            pageLayout->addLayout(optionsLayout);
-
-            // 正确答案选择
-            QComboBox *correctAnswerComboBox = new QComboBox(page);
-            correctAnswerComboBox->addItem(QStringLiteral("选项 1"));
-            correctAnswerComboBox->addItem(QStringLiteral("选项 2"));
-            correctAnswerComboBox->addItem(QStringLiteral("选项 3"));
-            correctAnswerComboBox->addItem(QStringLiteral("选项 4"));
-            correctAnswerComboBox->setPlaceholderText(QStringLiteral("选择正确答案"));
-            pageLayout->addWidget(correctAnswerComboBox);
-
-            // 添加页面到 QStackedWidget
-            stackedWidget->addWidget(page);
-        }
-
-        // 分页控制按钮
-        QHBoxLayout *navigationLayout = new QHBoxLayout();
-        QPushButton *prevButton = new QPushButton(QStringLiteral("上一题"), fullScreenWindow);
-        QPushButton *nextButton = new QPushButton(QStringLiteral("下一题"), fullScreenWindow);
-        navigationLayout->addWidget(prevButton);
-        navigationLayout->addWidget(nextButton);
-
-        layout->addWidget(stackedWidget);
-        layout->addLayout(navigationLayout);
-
-        // 上一题按钮逻辑
-        connect(prevButton, &QPushButton::clicked, [stackedWidget]() {
-            int currentIndex = stackedWidget->currentIndex();
-            if (currentIndex > 0) {
-                stackedWidget->setCurrentIndex(currentIndex - 1);
-            }
-        });
-
-        // 下一题按钮逻辑
-        connect(nextButton, &QPushButton::clicked, [stackedWidget, questionCount]() {
-            int currentIndex = stackedWidget->currentIndex();
-            if (currentIndex < questionCount - 1) {
-                stackedWidget->setCurrentIndex(currentIndex + 1);
-            }
-        });
-
-        // 提交按钮
-        QPushButton *submitButton = new QPushButton(QStringLiteral("提交"), fullScreenWindow);
-        submitButton->setFixedSize(100, 50);
-        layout->addWidget(submitButton);
-        layout->setAlignment(submitButton, Qt::AlignHCenter);
-
-        connect(submitButton, &QPushButton::clicked, fullScreenWindow, [this, fullScreenWindow]() {
-            // 提交按钮点击后的操作 (例如将题目数据发送给学生)
-            // 这里可以加入将题目和选项的数据传送给学生端的代码
-
-            fullScreenWindow->close();  // 关闭全屏窗口
-        });
-
-        // 关闭按钮
-        QPushButton *closeButton = new QPushButton(QStringLiteral("关闭"), fullScreenWindow);
+        // 關閉伺服器按鈕
+        QPushButton *closeButton = new QPushButton(QStringLiteral("關閉伺服器"), fullScreenWindow);
         closeButton->setFixedSize(100, 50);
-        layout->addWidget(closeButton);
-        layout->setAlignment(closeButton, Qt::AlignHCenter);
-
         connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
+        buttonLayout->addWidget(closeButton);
 
+        // 創建題目按鈕
+        QPushButton *createQuestionButton = new QPushButton(QStringLiteral("創建題目"), fullScreenWindow);
+        createQuestionButton->setFixedSize(100, 50);
+        buttonLayout->addWidget(createQuestionButton);
+
+        // 當按下「創建題目」按鈕時，傳送題目和選項給學生端
+        connect(createQuestionButton, &QPushButton::clicked, this, [this, questionInput, optionsLayout]() {
+            QString questionText = questionInput->toPlainText();
+            QStringList options;
+            for (int i = 0; i < 4; ++i) {
+                QLineEdit *optionInput = qobject_cast<QLineEdit *>(optionsLayout->itemAt(i)->widget());
+                if (optionInput) {
+                    options << optionInput->text();
+                }
+            }
+
+            qDebug() << "題目:" << questionText;
+            qDebug() << "選項:" << options;
+
+            // 在此處傳送題目和選項給學生端，需擴展功能實現傳輸邏輯
+        });
+
+        questionLayout->addLayout(buttonLayout);
+
+        // 將表格與題目布局整合
+        QHBoxLayout *contentLayout = new QHBoxLayout();
+        contentLayout->addWidget(studentTable);
+        contentLayout->addLayout(questionLayout);
+
+        mainLayout->addLayout(contentLayout);
+
+        fullScreenWindow->setLayout(mainLayout);
         fullScreenWindow->setStyleSheet("background-color: white;");
-        fullScreenWindow->setLayout(layout);
         fullScreenWindow->showFullScreen();
     });
 }
+
 
 void TcpFileServerandSender::startStudentMode()
 {
     sender->show();
     connect(sender->getTcpClient(), &QTcpSocket::connected, this, [this]() {
-        // 从 TcpFileServer 获取课程名称并传递给全屏窗口
+        // 從 TcpFileServer 獲取課程名稱並傳遞給全螢幕視窗
         QString courseName = receiver->getCourseName();
 
         this->close();
@@ -163,14 +136,14 @@ void TcpFileServerandSender::startStudentMode()
         QWidget *fullScreenWindow = new QWidget();
         QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
 
-        // 课程名称标签
+        // 課程名稱標籤
         QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
         courseNameLabel->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
         courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
         layout->addWidget(courseNameLabel);
 
-        // 关闭按钮
-        QPushButton *closeButton = new QPushButton(QStringLiteral("关闭"), fullScreenWindow);
+        // 關閉按鈕
+        QPushButton *closeButton = new QPushButton(QStringLiteral("關閉"), fullScreenWindow);
         closeButton->setFixedSize(100, 50);
         layout->addWidget(closeButton);
         layout->setAlignment(closeButton, Qt::AlignHCenter);
@@ -182,20 +155,19 @@ void TcpFileServerandSender::startStudentMode()
         fullScreenWindow->showFullScreen();
     });
 }
-
 void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
 {
     QWidget *fullScreenWindow = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
 
-    // 显示课程名称
+    // 顯示課程名稱
     QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
     courseNameLabel->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
     courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
     layout->addWidget(courseNameLabel);
 
-    // 关闭按钮
-    QPushButton *closeButton = new QPushButton(QStringLiteral("关闭"), fullScreenWindow);
+    // 關閉按鈕
+    QPushButton *closeButton = new QPushButton(QStringLiteral("關閉"), fullScreenWindow);
     closeButton->setFixedSize(100, 50);
     layout->addWidget(closeButton);
     layout->setAlignment(closeButton, Qt::AlignHCenter);

@@ -75,8 +75,7 @@ void TcpFileServer::start()
         return;
     }
 
-    // 伺服器啟動成功，發送信號
-    emit serverStarted(); // 這裡觸發 serverStarted 信號
+    emit serverStarted();
 
     QString courseName = courseNameLineEdit->text(); // 取得課程名稱
     QMessageBox::information(this, "成功", QString("伺服器已啟動，等待連線中...\n課程名稱: %1").arg(courseName));
@@ -94,7 +93,12 @@ void TcpFileServer::acceptConnection()
     tcpConnections.append(clientConnection);
 
     connect(clientConnection, &QTcpSocket::readyRead, this, &TcpFileServer::readClientData);
-    connect(clientConnection, &QTcpSocket::errorOccurred, this, &TcpFileServer::displayError);
+    connect(clientConnection, &QTcpSocket::disconnected, this, [this, clientConnection]() {
+        QString studentId = clientConnection->property("studentId").toString();
+        emit studentDisconnected(studentId); // 發送學生斷線信號
+        tcpConnections.removeOne(clientConnection);
+        clientConnection->deleteLater();
+    });
 
     QMessageBox::information(this, "連線", "新的客戶端已連線！");
 }
@@ -115,11 +119,13 @@ void TcpFileServer::readClientData()
     qDebug() << "接收到帳號：" << username;
     qDebug() << "接收到密碼：" << password;
 
-    // 驗證邏輯
-    if (username.left(6) == "412431") { // 檢查帳號的前六碼是否為 412431
-        clientConnection->write("success"); // 回應成功
+    clientConnection->setProperty("studentId", username); // 設定學號屬性
+    emit studentConnected(username); // 發送學生連線信號
+
+    if (username.left(6) == "412431") { // 驗證學號前六碼
+        clientConnection->write("success");
     } else {
-        clientConnection->write("failure"); // 回應失敗
+        clientConnection->write("failure");
     }
 }
 

@@ -18,6 +18,9 @@ public:
     QString getCourseName() const { return courseNameLineEdit->text(); }
 
 signals:
+
+    void studentConnected(const QString &studentId); // 當學生連線時發送學號
+    void studentDisconnected(const QString &studentId); // 當學生斷線時發送學號
     void serverStarted();  // 定義 serverStarted 信號
 
 private slots:
