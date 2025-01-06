@@ -116,7 +116,23 @@ void TcpFileServerandSender::startTeacherMode()
         contentLayout->addLayout(questionLayout);
 
         mainLayout->addLayout(contentLayout);
+        // 監聽學生連線信號，更新表格
+        connect(receiver, &TcpFileServer::studentConnected, this, [studentTable](const QString &studentId) {
+            int row = studentTable->rowCount();
+            studentTable->insertRow(row);
 
+            QTableWidgetItem *idItem = new QTableWidgetItem(studentId);
+            idItem->setTextAlignment(Qt::AlignCenter);
+            studentTable->setItem(row, 0, idItem);
+
+            QTableWidgetItem *scoreItem = new QTableWidgetItem("0");
+            scoreItem->setTextAlignment(Qt::AlignCenter);
+            studentTable->setItem(row, 1, scoreItem);
+
+            QTableWidgetItem *statusItem = new QTableWidgetItem("在線");
+            statusItem->setTextAlignment(Qt::AlignCenter);
+            studentTable->setItem(row, 2, statusItem);
+        });
         fullScreenWindow->setLayout(mainLayout);
         fullScreenWindow->setStyleSheet("background-color: white;");
         fullScreenWindow->showFullScreen();

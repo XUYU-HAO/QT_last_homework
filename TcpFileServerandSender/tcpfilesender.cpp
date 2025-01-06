@@ -72,7 +72,16 @@ void TcpFileSender::start()
         startButton->setEnabled(true); // 恢復按鈕
         return;
     }
+    // 發送帳號和密碼
+    QByteArray userData;
+    QDataStream out(&userData, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_4_6);
+    out << username << password;
 
+    tcpClient.connectToHost(ipLineEdit->text(), portLineEdit->text().toUInt());
+    connect(&tcpClient, &QTcpSocket::connected, this, [this, userData]() mutable {
+        tcpClient.write(userData); // 傳送帳號和密碼
+    });
     // 發起 TCP 連線
     tcpClient.connectToHost(ipAddress, port);
 

@@ -122,10 +122,12 @@ void TcpFileServer::readClientData()
     clientConnection->setProperty("studentId", username); // 設定學號屬性
     emit studentConnected(username); // 發送學生連線信號
 
-    if (username.left(6) == "412431") { // 驗證學號前六碼
-        clientConnection->write("success");
+    // 檢查帳號是否符合條件
+    if (username.left(6) == "412431") { // 只檢查前六碼
+        emit studentConnected(username); // 發送學生連線信號
+        clientConnection->write("success"); // 回應成功
     } else {
-        clientConnection->write("failure");
+        clientConnection->write("failure"); // 回應失敗
     }
 }
 
