@@ -18,8 +18,11 @@ private slots:
     void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
 
 private:
+    QString questionText;        // 保存題目
+    QStringList optionsText;     // 保存選項
     TcpFileSender *sender;
     TcpFileServer *receiver;
+    QVector<QLineEdit*> optionInputs;      // 保存選項輸入框指標
 };
 
 #endif // TCPFILESERVERANDSENDER_H

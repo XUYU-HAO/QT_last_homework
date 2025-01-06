@@ -68,12 +68,18 @@ void TcpFileServerandSender::startTeacherMode()
         questionLayout->addWidget(questionLabel);
         questionLayout->addWidget(questionInput);
 
+        // 清空之前的選項輸入框
+        optionInputs.clear();
+
         // 選項文字輸入框
         QVBoxLayout *optionsLayout = new QVBoxLayout();
         for (int i = 1; i <= 4; ++i) {
             QLineEdit *optionInput = new QLineEdit(fullScreenWindow);
             optionInput->setPlaceholderText(QStringLiteral("選項%1").arg(i));
             optionsLayout->addWidget(optionInput);
+
+            // 保存到 optionInputs 中
+            optionInputs.append(optionInput);
         }
         questionLayout->addLayout(optionsLayout);
 
@@ -92,18 +98,18 @@ void TcpFileServerandSender::startTeacherMode()
         buttonLayout->addWidget(createQuestionButton);
 
         // 當按下「創建題目」按鈕時，傳送題目和選項給學生端
-        connect(createQuestionButton, &QPushButton::clicked, this, [this, questionInput, optionsLayout]() {
-            QString questionText = questionInput->toPlainText();
-            QStringList options;
-            for (int i = 0; i < 4; ++i) {
-                QLineEdit *optionInput = qobject_cast<QLineEdit *>(optionsLayout->itemAt(i)->widget());
-                if (optionInput) {
-                    options << optionInput->text();
+        connect(createQuestionButton, &QPushButton::clicked, this, [this, questionInput]() {
+            questionText = questionInput->toPlainText();  // 保存題目
+            optionsText.clear();
+
+            for (QLineEdit *input : optionInputs) {
+                if (input) {
+                    optionsText.append(input->text());  // 保存選項
                 }
             }
 
             qDebug() << "題目:" << questionText;
-            qDebug() << "選項:" << options;
+            qDebug() << "選項:" << optionsText;
 
             // 在此處傳送題目和選項給學生端，需擴展功能實現傳輸邏輯
         });
@@ -147,18 +153,6 @@ void TcpFileServerandSender::startTeacherMode()
                 QTableWidgetItem *statusItem = new QTableWidgetItem("在線");
                 statusItem->setTextAlignment(Qt::AlignCenter);  // 設置狀態居中
                 studentTable->setItem(row, 2, statusItem);
-            } else {
-                // 學生已經在線，更新狀態為 "在線"
-                for (int row = 0; row < studentTable->rowCount(); ++row) {
-                    QTableWidgetItem *idItem = studentTable->item(row, 0);
-                    if (idItem && idItem->text() == studentId) {
-                        QTableWidgetItem *statusItem = studentTable->item(row, 2);
-                        if (statusItem) {
-                            statusItem->setText("在線");
-                        }
-                        break;
-                    }
-                }
             }
         });
 
@@ -181,36 +175,49 @@ void TcpFileServerandSender::startTeacherMode()
         fullScreenWindow->showFullScreen();
     });
 }
-
-
 void TcpFileServerandSender::startStudentMode()
 {
     sender->show();
     connect(sender->getTcpClient(), &QTcpSocket::connected, this, [this]() {
-        // 從 TcpFileServer 獲取課程名稱並傳遞給全螢幕視窗
         QString courseName = receiver->getCourseName();
 
         this->close();
 
         QWidget *fullScreenWindow = new QWidget();
-        QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
+        QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
 
         // 課程名稱標籤
         QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
-        courseNameLabel->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+        courseNameLabel->setAlignment(Qt::AlignCenter);
         courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
-        layout->addWidget(courseNameLabel);
+        mainLayout->addWidget(courseNameLabel);
+
+        // 顯示題目
+        QLabel *questionLabel = new QLabel(questionText, fullScreenWindow);
+        questionLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+        questionLabel->setStyleSheet("font-size: 18px; margin: 10px;");
+        mainLayout->addWidget(questionLabel);
+
+        // 顯示選項
+        QGridLayout *optionsLayout = new QGridLayout();
+        for (int i = 0; i < optionsText.size(); ++i) {
+            QLabel *optionLabel = new QLabel(optionsText[i], fullScreenWindow);
+            optionLabel->setStyleSheet("font-size: 16px;");
+            optionsLayout->addWidget(optionLabel, i / 2, i % 2);  // 兩列顯示
+        }
+
+        mainLayout->addLayout(optionsLayout);
 
         // 關閉按鈕
-        QPushButton *closeButton = new QPushButton(QStringLiteral("關閉"), fullScreenWindow);
+        QPushButton *closeButton = new QPushButton(QStringLiteral("退出"), fullScreenWindow);
         closeButton->setFixedSize(100, 50);
-        layout->addWidget(closeButton);
-        layout->setAlignment(closeButton, Qt::AlignHCenter);
+        mainLayout->addWidget(closeButton);
+        mainLayout->setAlignment(closeButton, Qt::AlignCenter);
 
         connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
 
         fullScreenWindow->setStyleSheet("background-color: white;");
-        fullScreenWindow->setLayout(layout);
+        fullScreenWindow->setLayout(mainLayout);
         fullScreenWindow->showFullScreen();
     });
 }
