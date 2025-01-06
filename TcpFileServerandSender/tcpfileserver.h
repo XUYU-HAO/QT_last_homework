@@ -16,9 +16,12 @@ class TcpFileServer : public QDialog
 public:
     explicit TcpFileServer(QWidget *parent = nullptr);
     ~TcpFileServer();
+    QString getCourseName() const; // 獲取課程名稱
+    void setCourseName(const QString &courseName); // 設置課程名稱
 
 signals:
     void serverStarted(); // 新增信號
+
 
 private slots:
     void start();                        // 啟動伺服器
@@ -34,6 +37,7 @@ private:
     QLineEdit *courseNameLineEdit;       // 課程名稱輸入框
     QLineEdit *ipLineEdit;               // IP 地址輸入框
     QLineEdit *portLineEdit;             // Port 號碼輸入框
+    QString courseName; // 儲存課程名稱
 };
 
 #endif // TCPFILESERVER_H

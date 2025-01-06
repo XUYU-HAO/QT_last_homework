@@ -45,6 +45,10 @@ TcpFileServer::TcpFileServer(QWidget *parent)
     connect(returnButton, &QPushButton::clicked, this, &TcpFileServer::close);
     connect(&tcpServer, &QTcpServer::newConnection, this, &TcpFileServer::acceptConnection);
     connect(&tcpServer, &QTcpServer::acceptError, this, &TcpFileServer::displayError);
+    connect(startButton, &QPushButton::clicked, this, [this, courseNameEdit]() {
+        setCourseName(courseNameEdit->text());
+        emit serverStarted(); // 發送伺服器啟動信號
+    });
 }
 
 TcpFileServer::~TcpFileServer()

@@ -33,7 +33,9 @@ void TcpFileServerandSender::startTeacherMode()
 {
     receiver->show();
     connect(receiver, &TcpFileServer::serverStarted, this, [this]() {
-        switchToFullScreen();
+        // 從 TcpFileServer 獲取課程名稱並傳遞給全螢幕視窗
+        QString courseName = receiver->getCourseName();
+        switchToFullScreen(courseName);
     });
 }
 
@@ -41,17 +43,24 @@ void TcpFileServerandSender::startStudentMode()
 {
     sender->show();
     connect(sender->getTcpClient(), &QTcpSocket::connected, this, [this]() {
-        switchToFullScreen();
+        // 從 TcpFileServer 獲取課程名稱並傳遞給全螢幕視窗
+        QString courseName = receiver->getCourseName();
+        switchToFullScreen(courseName);
     });
 }
 
-
-void TcpFileServerandSender::switchToFullScreen()
+void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
 {
     this->close();
 
     QWidget *fullScreenWindow = new QWidget();
-    fullScreenWindow->setWindowTitle(QStringLiteral("傳輸完成"));
+    QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
+
+    QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
+    courseNameLabel->setAlignment(Qt::AlignCenter);
+    courseNameLabel->setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 20px;");
+    layout->addWidget(courseNameLabel);
     fullScreenWindow->setStyleSheet("background-color: white;");
+    fullScreenWindow->setLayout(layout);
     fullScreenWindow->showFullScreen();
 }
