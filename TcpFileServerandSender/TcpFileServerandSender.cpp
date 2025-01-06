@@ -2,9 +2,11 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QTextEdit>
+#include <QComboBox>
+#include <QMessageBox>  // 引入QMessageBox來顯示消息框
 
 TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
-    : QWidget(parent), sender(new TcpFileSender(this)), receiver(new TcpFileServer(this))
+    : QWidget(parent), sender(new TcpFileSender(this)), receiver(new TcpFileServer(this)), fullScreenWindow(nullptr)
 {
     // 設置主窗口大小
     setFixedSize(450, 250);
@@ -37,7 +39,7 @@ void TcpFileServerandSender::startTeacherMode()
 
         this->close();
 
-        QWidget *fullScreenWindow = new QWidget();
+        fullScreenWindow = new QWidget();
         QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
 
         QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
@@ -56,34 +58,31 @@ void TcpFileServerandSender::startTeacherMode()
         connect(receiver, &TcpFileServer::studentConnected, this, [studentTable](const QString &studentId) {
             bool studentExists = false;
             for (int row = 0; row < studentTable->rowCount(); ++row) {
-                QTableWidgetItem *idItem = studentTable->item(row, 0);  // 檢查學號欄位
+                QTableWidgetItem *idItem = studentTable->item(row, 0);
                 if (idItem && idItem->text() == studentId) {
-                    studentExists = true;  // 學生已經在表格中
+                    studentExists = true;
                     break;
                 }
             }
 
-            // 如果學生不存在於表格中，則插入新一行
             if (!studentExists) {
-                int row = studentTable->rowCount();  // 獲取當前表格的行數
-                studentTable->insertRow(row);        // 插入新的一行
+                int row = studentTable->rowCount();
+                studentTable->insertRow(row);
 
-                // 插入學生的學號
                 QTableWidgetItem *idItem = new QTableWidgetItem(studentId);
                 idItem->setTextAlignment(Qt::AlignCenter);
                 studentTable->setItem(row, 0, idItem);
 
-                // 插入學生的分數，預設為 0
                 QTableWidgetItem *scoreItem = new QTableWidgetItem("0");
                 scoreItem->setTextAlignment(Qt::AlignCenter);
                 studentTable->setItem(row, 1, scoreItem);
 
-                // 插入學生的狀態，預設為 "在線"
                 QTableWidgetItem *statusItem = new QTableWidgetItem("在線");
                 statusItem->setTextAlignment(Qt::AlignCenter);
                 studentTable->setItem(row, 2, statusItem);
             }
         });
+
         QVBoxLayout *questionLayout = new QVBoxLayout();
         QLabel *questionLabel = new QLabel("題目輸入區", fullScreenWindow);
         questionLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
@@ -104,6 +103,12 @@ void TcpFileServerandSender::startTeacherMode()
         }
         questionLayout->addLayout(optionsLayout);
 
+        QLabel *correctAnswerLabel = new QLabel("選擇正確答案", fullScreenWindow);
+        QComboBox *correctAnswerCombo = new QComboBox(fullScreenWindow);
+        correctAnswerCombo->addItems(QStringList() << "選項1" << "選項2" << "選項3" << "選項4");
+        questionLayout->addWidget(correctAnswerLabel);
+        questionLayout->addWidget(correctAnswerCombo);
+
         QHBoxLayout *buttonLayout = new QHBoxLayout();
 
         QPushButton *closeButton = new QPushButton(QStringLiteral("關閉伺服器"), fullScreenWindow);
@@ -115,25 +120,27 @@ void TcpFileServerandSender::startTeacherMode()
         createQuestionButton->setFixedSize(100, 50);
         buttonLayout->addWidget(createQuestionButton);
 
-        connect(createQuestionButton, &QPushButton::clicked, this, [this, questionInput]() {
-            questionText = questionInput->toPlainText();  // 保存題目
+        connect(createQuestionButton, &QPushButton::clicked, this, [this, questionInput, correctAnswerCombo]() {
+            questionText = questionInput->toPlainText();
             optionsText.clear();
 
             for (QLineEdit *input : optionInputs) {
                 if (input) {
-                    optionsText.append(input->text());  // 保存選項
+                    optionsText.append(input->text());
                 }
             }
 
+            correctAnswer = correctAnswerCombo->currentIndex(); // 存儲正確選項的索引
+
             qDebug() << "題目:" << questionText;
             qDebug() << "選項:" << optionsText;
+            qDebug() << "正確答案索引:" << correctAnswer;
 
             QByteArray block;
             QDataStream out(&block, QIODevice::WriteOnly);
             out.setVersion(QDataStream::Qt_4_6);
 
-            // 傳送題目和選項
-            out << QString("question") << questionText << optionsText;
+            out << QString("question") << questionText << optionsText << correctAnswer;
 
             for (QTcpSocket *client : receiver->getClientConnections()) {
                 client->write(block);
@@ -167,11 +174,11 @@ void TcpFileServerandSender::startStudentMode()
         in >> messageType;
 
         if (messageType == "question") {
-            in >> questionText >> optionsText;
+            in >> questionText >> optionsText >> correctAnswer;
 
             this->close();
 
-            QWidget *fullScreenWindow = new QWidget();
+            fullScreenWindow = new QWidget();
             QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
 
             QLabel *courseNameLabel = new QLabel(receiver->getCourseName(), fullScreenWindow);
@@ -191,7 +198,20 @@ void TcpFileServerandSender::startStudentMode()
                 optionsLayout->addWidget(optionButton, i / 2, i % 2);
 
                 connect(optionButton, &QPushButton::clicked, this, [this, i]() {
-                    sender->sendStudentAnswer(optionsText[i]);
+                    // 檢查選擇的答案是否正確
+                    if (i == correctAnswer) {
+                        sender->sendStudentAnswer("correct");
+
+                        // 顯示答對的消息框
+                        QMessageBox::information(fullScreenWindow, "恭喜!", "答對了！", QMessageBox::Ok);
+                    } else {
+                        sender->sendStudentAnswer("incorrect");
+
+                        // 顯示答錯的消息框
+                        QMessageBox::critical(fullScreenWindow, "答錯了", "答錯了，你真的好蔡！", QMessageBox::Ok);
+                    }
+
+                    fullScreenWindow->close(); // 關閉 UI
                 });
             }
 
@@ -210,26 +230,40 @@ void TcpFileServerandSender::startStudentMode()
         }
     });
 }
-void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
+
+void TcpFileServerandSender::handleStudentAnswer(const QString &studentId, const QString &answerStatus)
 {
-    QWidget *fullScreenWindow = new QWidget();
-    QVBoxLayout *layout = new QVBoxLayout(fullScreenWindow);
+    if (!fullScreenWindow) return; // 確保全屏窗口存在
 
-    // 顯示課程名稱
-    QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
-    courseNameLabel->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
-    courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
-    layout->addWidget(courseNameLabel);
+    QTableWidget *studentTable = nullptr;
+    // 假設您將學生表格放在全屏窗口的某個布局中
+    for (QWidget *widget : fullScreenWindow->findChildren<QWidget*>()) {
+        if (QTableWidget *table = qobject_cast<QTableWidget*>(widget)) {
+            studentTable = table;
+            break;
+        }
+    }
 
-    // 關閉按鈕
-    QPushButton *closeButton = new QPushButton(QStringLiteral("關閉"), fullScreenWindow);
-    closeButton->setFixedSize(100, 50);
-    layout->addWidget(closeButton);
-    layout->setAlignment(closeButton, Qt::AlignHCenter);
+    if (!studentTable) return; // 如果沒有找到學生表格，則退出
 
-    connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
+    for (int row = 0; row < studentTable->rowCount(); ++row) {
+        QTableWidgetItem *idItem = studentTable->item(row, 0);
+        if (idItem && idItem->text() == studentId) {
+            QTableWidgetItem *scoreItem = studentTable->item(row, 1);
+            int currentScore = scoreItem->text().toInt();
 
-    fullScreenWindow->setStyleSheet("background-color: white;");
-    fullScreenWindow->setLayout(layout);
-    fullScreenWindow->showFullScreen();
+            if (answerStatus == "correct") {
+                currentScore++; // 正確答案加分
+            }
+
+            scoreItem->setText(QString::number(currentScore));
+
+            // 如果需要，您也可以更新學生的狀態或其他信息
+            QTableWidgetItem *statusItem = studentTable->item(row, 2);
+            statusItem->setText(answerStatus == "correct" ? "正確" : "錯誤");
+
+            break; // 找到對應學生並更新後退出
+        }
+    }
 }
+

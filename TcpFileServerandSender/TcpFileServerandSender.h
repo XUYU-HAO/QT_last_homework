@@ -12,18 +12,19 @@ class TcpFileServerandSender : public QWidget
 public:
     explicit TcpFileServerandSender(QWidget *parent = nullptr);
 
-
 private slots:
     void startTeacherMode();
     void startStudentMode();
-    void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
+    void handleStudentAnswer(const QString &studentId, const QString &answerStatus);
 
 private:
     QString questionText;        // 保存題目
     QStringList optionsText;     // 保存選項
+    int correctAnswer;           // 正確答案的索引
     TcpFileSender *sender;
     TcpFileServer *receiver;
-    QVector<QLineEdit*> optionInputs;      // 保存選項輸入框指標
+    QVector<QLineEdit*> optionInputs;  // 保存選項輸入框指標
+    QWidget *fullScreenWindow;       // 保存全屏顯示窗口的指標
 };
 
 #endif // TCPFILESERVERANDSENDER_H
