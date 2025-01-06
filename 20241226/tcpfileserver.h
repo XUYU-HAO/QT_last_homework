@@ -6,6 +6,8 @@
 #include <QTcpSocket>
 #include <QList>
 #include <QLineEdit>
+#include <QPushButton>
+#include <QLabel>
 
 class TcpFileServer : public QDialog
 {
@@ -14,23 +16,24 @@ class TcpFileServer : public QDialog
 public:
     explicit TcpFileServer(QWidget *parent = nullptr);
     ~TcpFileServer();
+
 signals:
-    void serverCreated(); // 添加這行
+    void serverStarted(); // 新增信號
 
 private slots:
-    void start();
-    void acceptConnection();
-    void readClientData();
-    void displayError(QAbstractSocket::SocketError socketError);
+    void start();                        // 啟動伺服器
+    void acceptConnection();             // 接受新客戶端連線
+    void readClientData();               // 讀取客戶端發送的數據
+    void displayError(QAbstractSocket::SocketError socketError); // 處理錯誤
 
 private:
-    QTcpServer tcpServer;
-    QList<QTcpSocket*> tcpConnections;  // 用來儲存所有的客戶端連線
-    QPushButton *startButton;
-    QPushButton *returnButton;
-    QLineEdit *courseNameLineEdit;
-    QLineEdit *ipLineEdit;
-    QLineEdit *portLineEdit;
+    QTcpServer tcpServer;                // TCP 伺服器
+    QList<QTcpSocket*> tcpConnections;   // 儲存所有客戶端連線
+    QPushButton *startButton;            // 啟動伺服器按鈕
+    QPushButton *returnButton;           // 返回按鈕
+    QLineEdit *courseNameLineEdit;       // 課程名稱輸入框
+    QLineEdit *ipLineEdit;               // IP 地址輸入框
+    QLineEdit *portLineEdit;             // Port 號碼輸入框
 };
 
 #endif // TCPFILESERVER_H

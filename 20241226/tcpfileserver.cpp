@@ -4,13 +4,10 @@
 #include <QHostAddress>
 #include <QDataStream>
 #include <QDebug>
-#include <QLabel>
-#include <QPushButton>
 
 TcpFileServer::TcpFileServer(QWidget *parent)
     : QDialog(parent)
 {
-    // 初始化界面元件
     QLabel *courseNameLabel = new QLabel("課程名稱:");
     courseNameLineEdit = new QLineEdit;
     courseNameLineEdit->setPlaceholderText("請輸入課程名稱");
@@ -50,43 +47,32 @@ TcpFileServer::TcpFileServer(QWidget *parent)
 
 TcpFileServer::~TcpFileServer()
 {
-    // 關閉所有的 TCP 連線
     qDeleteAll(tcpConnections);
 }
 
 void TcpFileServer::start()
 {
-    startButton->setEnabled(false);
-
     QString ipAddress = ipLineEdit->text();
     quint16 port = portLineEdit->text().toUInt();
 
     if (ipAddress.isEmpty() || port == 0) {
         QMessageBox::warning(this, "輸入錯誤", "請輸入有效的 IP 地址和端口號。");
-        startButton->setEnabled(true);
         return;
     }
 
-    while (!tcpServer.isListening() && !tcpServer.listen(QHostAddress(ipAddress), port)) {
-        QMessageBox::StandardButton ret = QMessageBox::critical(this,
-                                                                "伺服器錯誤",
-                                                                QString("無法啟動伺服器: %1.").arg(tcpServer.errorString()),
-                                                                QMessageBox::Retry | QMessageBox::Cancel);
-        if (ret == QMessageBox::Cancel) {
-            startButton->setEnabled(true);
-            return;
-        }
+    if (!tcpServer.listen(QHostAddress(ipAddress), port)) {
+        QMessageBox::critical(this, "伺服器錯誤", QString("無法啟動伺服器: %1.").arg(tcpServer.errorString()));
+        return;
     }
 
+    emit serverStarted(); // 發送伺服器啟動信號
     QMessageBox::information(this, "成功", "伺服器已啟動，等待連線中...");
-        emit serverCreated(); // 觸發信號
 }
 
 void TcpFileServer::acceptConnection()
 {
-    // 接受新連線
     QTcpSocket* clientConnection = tcpServer.nextPendingConnection();
-    tcpConnections.append(clientConnection);  // 儲存新的連線
+    tcpConnections.append(clientConnection);
 
     connect(clientConnection, &QTcpSocket::readyRead, this, &TcpFileServer::readClientData);
     connect(clientConnection, &QTcpSocket::errorOccurred, this, &TcpFileServer::displayError);
@@ -105,12 +91,18 @@ void TcpFileServer::readClientData()
     QString username;
     QString password;
 
-    in >> username >> password;  // 讀取帳號與密碼
+    in >> username >> password;
 
     qDebug() << "接收到帳號：" << username;
     qDebug() << "接收到密碼：" << password;
 
-    // 在這裡可以進行帳號密碼的驗證等操作
+    if (username == "student" && password == "1234") {
+        clientConnection->write("登入成功");
+        qDebug() << "驗證成功";
+    } else {
+        clientConnection->write("帳號或密碼錯誤");
+        qDebug() << "驗證失敗";
+    }
 }
 
 void TcpFileServer::displayError(QAbstractSocket::SocketError socketError)
@@ -121,7 +113,7 @@ void TcpFileServer::displayError(QAbstractSocket::SocketError socketError)
     if (clientConnection) {
         QMessageBox::information(this, "網絡錯誤", QString("發生錯誤: %1").arg(clientConnection->errorString()));
         clientConnection->close();
-        tcpConnections.removeOne(clientConnection);  // 從連線列表中移除
+        tcpConnections.removeOne(clientConnection);
         delete clientConnection;
     }
 }
