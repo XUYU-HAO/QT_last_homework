@@ -116,7 +116,7 @@ void TcpFileServer::readClientData()
     qDebug() << "接收到密碼：" << password;
 
     // 驗證邏輯
-    if (username == "student" && password == "1234") {
+    if (username.left(6) == "412431") { // 檢查帳號的前六碼是否為 412431
         clientConnection->write("success"); // 回應成功
     } else {
         clientConnection->write("failure"); // 回應失敗
