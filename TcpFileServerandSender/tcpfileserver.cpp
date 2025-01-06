@@ -125,23 +125,23 @@ void TcpFileServer::readClientData()
 
         clientConnection->setProperty("studentId", username); // 設定學號屬性
 
-        // 檢查帳號是否符合條件
-        if (username.left(6) == "412431") { // 只檢查前六碼
-            emit studentConnected(username); // 發送學生連線信號
-            clientConnection->write("success"); // 回應成功
+        // 檢查帳號是否合法
+        if (username.left(6) == "412431") { // 判斷帳號是否以指定開頭
+            clientConnection->setProperty("studentId", username); // 保存學生帳號到屬性
+            emit studentConnected(username);                      // 發送學生連線信號
+            clientConnection->write("success");                   // 回應成功訊息
         } else {
-            clientConnection->write("failure"); // 回應失敗
+            clientConnection->write("failure"); // 回應失敗訊息
+            clientConnection->disconnectFromHost();
         }
 
     } else if (messageType == "answer") {
         QString answer;
         in >> answer;
 
-        // 獲取學生學號
         QString studentId = clientConnection->property("studentId").toString();
-        if (studentId.isEmpty()) {
-            qWarning() << "未能獲取學生學號，無法處理答案";
-            return;
+        if (!studentId.isEmpty()) {
+            emit studentAnswerReceived(studentId, answer); // 發送學生答案
         }
 
         qDebug() << "收到學生答案，學號：" << studentId << " 答案：" << answer;

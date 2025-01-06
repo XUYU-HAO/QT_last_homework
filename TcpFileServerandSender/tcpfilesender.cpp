@@ -94,11 +94,26 @@ void TcpFileSender::start()
     QByteArray userData;
     QDataStream out(&userData, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_4_6);
-    out << username << password;
+    out << QString("login") << username << password;
 
-    tcpClient.connectToHost(ipLineEdit->text(), portLineEdit->text().toUInt());
+    tcpClient.connectToHost(ipAddress, port);
     connect(&tcpClient, &QTcpSocket::connected, this, [this, userData]() mutable {
-        tcpClient.write(userData); // 傳送帳號和密碼
+        tcpClient.write(userData); // 傳送登入資料
+    });
+    // 處理伺服器回應
+    connect(&tcpClient, &QTcpSocket::readyRead, this, [this]() {
+        QByteArray response = tcpClient.readAll();
+        QString result(response);
+
+        if (result == "success") {
+            QMessageBox::information(this, QStringLiteral("成功"), QStringLiteral("登入成功！"));
+            this->close(); // 關閉登入介面
+            disconnect(&tcpClient, &QTcpSocket::readyRead, nullptr, nullptr); // 斷開訊號連接
+        } else if (result == "failure") {
+            QMessageBox::warning(this, QStringLiteral("失敗"), QStringLiteral("帳號或密碼錯誤！"));
+            startButton->setEnabled(true); // 恢復按鈕
+            tcpClient.disconnectFromHost(); // 斷開連線
+        }
     });
     // 發起 TCP 連線
     tcpClient.connectToHost(ipAddress, port);
@@ -119,24 +134,10 @@ void TcpFileSender::start()
         tcpClient.write(data); // 傳送資料
     });
 
-    // 處理伺服器回應
-    connect(&tcpClient, &QTcpSocket::readyRead, this, [this]() {
-        QByteArray response = tcpClient.readAll();
-        QString result(response);
-
-        if (result == "success") {
-            QMessageBox::information(this, QStringLiteral("成功"), QStringLiteral("登入成功！"));
-            this->close(); // 關閉登入介面
-        } else {
-            QMessageBox::warning(this, QStringLiteral("失敗"), QStringLiteral("帳號或密碼錯誤！"));
-            startButton->setEnabled(true); // 恢復按鈕
-        }
-    });
-
     // 處理連線錯誤
-    connect(&tcpClient, &QTcpSocket::errorOccurred, this, [this](QAbstractSocket::SocketError socketError) {
-        Q_UNUSED(socketError)
+    connect(&tcpClient, &QTcpSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
         QMessageBox::critical(this, QStringLiteral("連線失敗"), tcpClient.errorString());
         startButton->setEnabled(true); // 恢復按鈕
     });
+
 }

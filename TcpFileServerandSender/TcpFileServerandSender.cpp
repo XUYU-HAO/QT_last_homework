@@ -53,7 +53,37 @@ void TcpFileServerandSender::startTeacherMode()
         studentTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
         studentTable->setSelectionMode(QAbstractItemView::NoSelection);
         studentTable->setFixedWidth(300);
+        connect(receiver, &TcpFileServer::studentConnected, this, [studentTable](const QString &studentId) {
+            bool studentExists = false;
+            for (int row = 0; row < studentTable->rowCount(); ++row) {
+                QTableWidgetItem *idItem = studentTable->item(row, 0);  // 檢查學號欄位
+                if (idItem && idItem->text() == studentId) {
+                    studentExists = true;  // 學生已經在表格中
+                    break;
+                }
+            }
 
+            // 如果學生不存在於表格中，則插入新一行
+            if (!studentExists) {
+                int row = studentTable->rowCount();  // 獲取當前表格的行數
+                studentTable->insertRow(row);        // 插入新的一行
+
+                // 插入學生的學號
+                QTableWidgetItem *idItem = new QTableWidgetItem(studentId);
+                idItem->setTextAlignment(Qt::AlignCenter);
+                studentTable->setItem(row, 0, idItem);
+
+                // 插入學生的分數，預設為 0
+                QTableWidgetItem *scoreItem = new QTableWidgetItem("0");
+                scoreItem->setTextAlignment(Qt::AlignCenter);
+                studentTable->setItem(row, 1, scoreItem);
+
+                // 插入學生的狀態，預設為 "在線"
+                QTableWidgetItem *statusItem = new QTableWidgetItem("在線");
+                statusItem->setTextAlignment(Qt::AlignCenter);
+                studentTable->setItem(row, 2, statusItem);
+            }
+        });
         QVBoxLayout *questionLayout = new QVBoxLayout();
         QLabel *questionLabel = new QLabel("題目輸入區", fullScreenWindow);
         questionLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
@@ -86,26 +116,27 @@ void TcpFileServerandSender::startTeacherMode()
         buttonLayout->addWidget(createQuestionButton);
 
         connect(createQuestionButton, &QPushButton::clicked, this, [this, questionInput]() {
-            questionText = questionInput->toPlainText();
+            questionText = questionInput->toPlainText();  // 保存題目
             optionsText.clear();
 
             for (QLineEdit *input : optionInputs) {
                 if (input) {
-                    optionsText.append(input->text());
+                    optionsText.append(input->text());  // 保存選項
                 }
             }
 
             qDebug() << "題目:" << questionText;
             qDebug() << "選項:" << optionsText;
 
-            // 傳送題目與選項給學生端
-            QByteArray data;
-            QDataStream out(&data, QIODevice::WriteOnly);
+            QByteArray block;
+            QDataStream out(&block, QIODevice::WriteOnly);
             out.setVersion(QDataStream::Qt_4_6);
+
+            // 傳送題目和選項
             out << QString("question") << questionText << optionsText;
 
             for (QTcpSocket *client : receiver->getClientConnections()) {
-                client->write(data);
+                client->write(block);
                 client->flush();
             }
         });
