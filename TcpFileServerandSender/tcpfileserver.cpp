@@ -135,7 +135,8 @@ void TcpFileServer::readClientData()
             clientConnection->disconnectFromHost();
         }
 
-    } else if (messageType == "answer") {
+    }
+    if (messageType == "answer") {
         QString answer;
         in >> answer;
 
@@ -144,9 +145,11 @@ void TcpFileServer::readClientData()
             qWarning() << "未能獲取學生學號，無法處理答案";
             return;
         }
+        // 將學生的答案索引加 1
+        int adjustedAnswerIndex = answer.toInt() + 1;
 
+        qDebug() << "調整後的答案索引：" << adjustedAnswerIndex;
         qDebug() << "收到學生答案，學號：" << studentId << " 答案索引：" << answer;
-
         // 判斷答案是否正確
         if (answer.toInt() == correctAnswerIndex) { // 如果答案正確
             emit studentCorrectAnswer(studentId);  // 發送正確答案信號，攜帶學生學號

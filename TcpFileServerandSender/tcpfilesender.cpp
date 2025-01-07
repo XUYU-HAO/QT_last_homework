@@ -60,8 +60,8 @@ void TcpFileSender::sendStudentAnswer(const QString &answer)
         QDataStream out(&block, QIODevice::WriteOnly);
         out.setVersion(QDataStream::Qt_4_6);
 
-        // 將答案寫入資料流
-        out << QString("answer") << answer;
+        int adjustedAnswerIndex = answer.toInt() - 1;
+        out << QString("answer") << QString::number(adjustedAnswerIndex);
 
         // 發送資料
         tcpClient.write(block);

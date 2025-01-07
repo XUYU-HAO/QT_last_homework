@@ -255,7 +255,7 @@ void TcpFileServerandSender::startStudentMode()
                     out.setVersion(QDataStream::Qt_4_6);
 
                     // 傳送選項索引
-                    out << QString("answer") << (i-1);
+                    out << QString("answer") << (i);
                     client->write(block);
                     client->flush();
                     qDebug() << "傳送選項索引:" << i;
