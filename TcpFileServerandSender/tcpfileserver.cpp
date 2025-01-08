@@ -105,14 +105,19 @@ void TcpFileServer::acceptConnection()
 
 void TcpFileServer::readClientData()
 {
+    qDebug() << "開始處理數據...";
     QTcpSocket* clientConnection = qobject_cast<QTcpSocket*>(sender());
-    if (!clientConnection) return;
+    if (!clientConnection) {
+        qWarning() << "無法獲取客戶端連接。";
+        return;
+    }
 
     QDataStream in(clientConnection);
     in.setVersion(QDataStream::Qt_4_6);
 
     QString messageType;
-    in >> messageType;
+    in >> messageType; // 讀取消息類型
+    qDebug() << "接收到消息類型：" << messageType;
 
     if (messageType == "login") {
         QString username;
@@ -127,16 +132,16 @@ void TcpFileServer::readClientData()
 
         // 檢查帳號是否合法
         if (username.left(6) == "412431") { // 判斷帳號是否以指定開頭
-            clientConnection->setProperty("studentId", username); // 保存學生帳號到屬性
             emit studentConnected(username);                      // 發送學生連線信號
             clientConnection->write("success");                   // 回應成功訊息
+            qDebug() << "學生登入成功，學號：" << username;
         } else {
             clientConnection->write("failure"); // 回應失敗訊息
             clientConnection->disconnectFromHost();
+            qDebug() << "學生登入失敗，學號：" << username;
         }
 
-    }
-    if (messageType == "answer") {
+    } else if (true) {
         QString answer;
         in >> answer;
 
@@ -145,22 +150,41 @@ void TcpFileServer::readClientData()
             qWarning() << "未能獲取學生學號，無法處理答案";
             return;
         }
-        // 將學生的答案索引加 1
-        int adjustedAnswerIndex = answer.toInt() + 1;
 
-        qDebug() << "調整後的答案索引：" << adjustedAnswerIndex;
         qDebug() << "收到學生答案，學號：" << studentId << " 答案索引：" << answer;
+
+        // 確保正確答案索引已設定
+        if (this->correctAnswerIndex < 0) {
+            qWarning() << "未設定正確答案索引，無法判斷答案正確性！";
+            return;
+        }
+
         // 判斷答案是否正確
-        if (answer.toInt() == correctAnswerIndex) { // 如果答案正確
+        int answerIndex = answer.toInt();
+        qDebug() << "學生答案索引：" << answerIndex << " 正確答案索引：" << this->correctAnswerIndex;
+
+        bool isCorrect = (answerIndex == this->correctAnswerIndex); // 判斷是否正確
+        if (isCorrect) {
             emit studentCorrectAnswer(studentId);  // 發送正確答案信號，攜帶學生學號
             qDebug() << "學生學號" << studentId << "答對了！";
         } else {
             qDebug() << "學生學號" << studentId << "答錯了！";
         }
 
+        // 回傳判斷結果給學生
+        QByteArray resultBlock;
+        QDataStream resultStream(&resultBlock, QIODevice::WriteOnly);
+        resultStream.setVersion(QDataStream::Qt_4_6);
+
+        resultStream << QString("result") << isCorrect; // true 表示答對，false 表示答錯
+
+        clientConnection->write(resultBlock);
+        clientConnection->flush();
+        qDebug() << "已回傳判斷結果給學生，學號：" << studentId;
+    } else {
+        qWarning() << "收到未知的消息類型：" << messageType;
     }
 }
-
 void TcpFileServer::displayError(QAbstractSocket::SocketError socketError)
 {
     Q_UNUSED(socketError);

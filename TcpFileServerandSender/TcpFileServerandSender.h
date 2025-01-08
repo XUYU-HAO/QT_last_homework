@@ -19,6 +19,7 @@ private slots:
     void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
 
 private:
+    QWidget *waitingWindow; // 用於顯示等待視
     int correctAnswerIndex;
     QString questionText;        // 保存題目
     QStringList optionsText;     // 保存選項

@@ -55,6 +55,7 @@ TcpFileSender::~TcpFileSender()
 }
 void TcpFileSender::sendStudentAnswer(const QString &answer)
 {
+    qDebug() << "已發送學生答案:" << answer;
     if (tcpClient.state() == QAbstractSocket::ConnectedState) {
         QByteArray block;
         QDataStream out(&block, QIODevice::WriteOnly);
@@ -62,6 +63,7 @@ void TcpFileSender::sendStudentAnswer(const QString &answer)
 
         int adjustedAnswerIndex = answer.toInt() - 1;
         out << QString("answer") << QString::number(adjustedAnswerIndex);
+
 
         // 發送資料
         tcpClient.write(block);

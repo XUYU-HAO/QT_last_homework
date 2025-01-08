@@ -5,9 +5,10 @@
 #include <QButtonGroup>
 #include <QRadioButton>
 #include <QMessageBox>
+#include <QApplication>
 
 TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
-    : QWidget(parent), sender(new TcpFileSender(this)), receiver(new TcpFileServer(this))
+    : QWidget(parent), sender(new TcpFileSender(this)), receiver(new TcpFileServer(this)), waitingWindow(nullptr)
 {
     // 設置主窗口大小
     setFixedSize(450, 250);
@@ -163,6 +164,7 @@ void TcpFileServerandSender::startTeacherMode()
 
             // 獲取正確答案索引
             int correctAnswerIndex = correctAnswerGroup->checkedId(); // 取得選中的正確答案索引
+            qDebug() << correctAnswerIndex<<"這是正確答案引所";
 
             qDebug() << "題目:" << questionText;
             qDebug() << "選項:" << optionsText;
@@ -176,8 +178,11 @@ void TcpFileServerandSender::startTeacherMode()
             out << QString("question") << questionText << optionsText << correctAnswerIndex;
 
             for (QTcpSocket *client : receiver->getClientConnections()) {
-                client->write(block);
-                client->flush();
+                if (client && client->state() == QAbstractSocket::ConnectedState) {
+                    client->write(block);
+                    client->flush();
+                    qDebug() << "已發送題目給學生：" << client->peerAddress().toString();
+                }
             }
         });
 
@@ -204,10 +209,40 @@ void TcpFileServerandSender::startTeacherMode()
     });
 
 }
-
 void TcpFileServerandSender::startStudentMode()
 {
     sender->show();
+
+    connect(sender->getTcpClient(), &QTcpSocket::connected, this, [this]() {
+        qDebug() << "學生端已成功連線到伺服器";
+
+        // 創建等待老師出題的視窗
+        if (!waitingWindow) { // 如果等待視窗尚未創建
+            waitingWindow = new QWidget();
+            QVBoxLayout *waitingLayout = new QVBoxLayout(waitingWindow);
+
+            QLabel *waitingLabel = new QLabel("等待老師出題中...", waitingWindow);
+            waitingLabel->setAlignment(Qt::AlignCenter);
+            waitingLabel->setStyleSheet("font-size: 36px; font-weight: bold; color: gray;");
+            waitingLayout->addWidget(waitingLabel);
+
+            // 添加退出按鈕
+            QPushButton *exitButton = new QPushButton("退出", waitingWindow);
+            exitButton->setFixedSize(150, 100); // 設置按鈕大小
+            waitingLayout->addWidget(exitButton);
+            waitingLayout->setAlignment(exitButton, Qt::AlignCenter); // 按鈕居中
+
+            // 連接退出按鈕的點擊事件
+            connect(exitButton, &QPushButton::clicked, this, [this]() {
+                QApplication::quit(); // 關閉整個應用程式
+            });
+
+            waitingWindow->setLayout(waitingLayout);
+            waitingWindow->setStyleSheet("background-color: white;");
+        }
+        waitingWindow->showFullScreen();
+    });
+
     connect(sender->getTcpClient(), &QTcpSocket::readyRead, this, [this]() {
         QTcpSocket *client = sender->getTcpClient();
         QDataStream in(client);
@@ -217,79 +252,73 @@ void TcpFileServerandSender::startStudentMode()
         in >> messageType;
 
         if (messageType == "question") {
-            int correctAnswerIndex; // 定義接收正確答案的變數
-            in >> questionText >> optionsText >> correctAnswerIndex; // 接收題目、選項和正確答案索引
+            // 隱藏等待視窗
+            if (waitingWindow) {
+                waitingWindow->hide();
+            }
 
-            this->close();
+            int correctAnswerIndex;
+            in >> questionText >> optionsText >> correctAnswerIndex;
 
-            // 創建全屏顯示窗口
-            QWidget *fullScreenWindow = new QWidget();
-            QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
+            // 創建答題視窗
+            QWidget *questionWindow = new QWidget();
+            QVBoxLayout *mainLayout = new QVBoxLayout(questionWindow);
 
-            // 顯示課程名稱
-            QLabel *courseNameLabel = new QLabel(receiver->getCourseName(), fullScreenWindow);
+            QLabel *courseNameLabel = new QLabel("答題開始", questionWindow);
             courseNameLabel->setAlignment(Qt::AlignCenter);
             courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin-top: 20px;");
             mainLayout->addWidget(courseNameLabel);
 
-            // 顯示題目
-            QLabel *questionLabel = new QLabel(questionText, fullScreenWindow);
+            QLabel *questionLabel = new QLabel(questionText, questionWindow);
             questionLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
             questionLabel->setStyleSheet("font-size: 18px; margin: 10px;");
             mainLayout->addWidget(questionLabel);
 
-            // 顯示選項按鈕
             QGridLayout *optionsLayout = new QGridLayout();
             for (int i = 0; i < optionsText.size(); ++i) {
-                QPushButton *optionButton = new QPushButton(optionsText[i], fullScreenWindow);
+                QPushButton *optionButton = new QPushButton(optionsText[i], questionWindow);
                 optionButton->setStyleSheet("font-size: 16px; padding: 10px;");
                 optionsLayout->addWidget(optionButton, i / 2, i % 2);
 
-                // 處理學生選擇選項的事件
-                connect(optionButton, &QPushButton::clicked, this, [this, i, correctAnswerIndex,client, fullScreenWindow]() {
-                    QString selectedOption = optionsText[i];
-                    qDebug() << "學生選擇了選項:" << selectedOption;
+                connect(optionButton, &QPushButton::clicked, this, [this, i, correctAnswerIndex, client, questionWindow]() {
+                    bool isCorrect = (i == correctAnswerIndex);
 
                     QByteArray block;
                     QDataStream out(&block, QIODevice::WriteOnly);
                     out.setVersion(QDataStream::Qt_4_6);
+                    out << QString("answerResult") << isCorrect;
 
-                    // 傳送選項索引
-                    out << QString("answer") << (i);
                     client->write(block);
                     client->flush();
-                    qDebug() << "傳送選項索引:" << i;
-                    qDebug() << "傳送選項索引:" << correctAnswerIndex;
-                    // 接收判斷結果（模擬處理，實際應由伺服器回應判斷結果）
-                    bool isCorrect = (i == correctAnswerIndex); // 假設有一個 `correctAnswerIndex` 保存正確答案索引
+                    qDebug() << "答案結果已回傳給伺服器：" << (isCorrect ? "正確" : "錯誤");
 
-                    // 顯示結果對話框
                     QMessageBox::information(
-                        fullScreenWindow,
+                        questionWindow,
                         isCorrect ? "結果" : "錯誤",
                         isCorrect ? "答對了！" : "答錯了！"
                         );
 
-                    // 關閉題目窗口
-                    fullScreenWindow->close();
+                    questionWindow->close();
+                    waitingWindow->showFullScreen();
                 });
             }
 
             mainLayout->addLayout(optionsLayout);
 
-            QPushButton *closeButton = new QPushButton(QStringLiteral("退出"), fullScreenWindow);
+            QPushButton *closeButton = new QPushButton(QStringLiteral("退出"), questionWindow);
             closeButton->setFixedSize(100, 50);
             mainLayout->addWidget(closeButton);
-            mainLayout->setAlignment(closeButton, Qt::AlignCenter);
+            connect(closeButton, &QPushButton::clicked, questionWindow, &QWidget::close);
 
-            connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
-
-            fullScreenWindow->setStyleSheet("background-color: white;");
-            fullScreenWindow->setLayout(mainLayout);
-            fullScreenWindow->showFullScreen();
+            questionWindow->setStyleSheet("background-color: white;");
+            questionWindow->setLayout(mainLayout);
+            questionWindow->showFullScreen();
         }
     });
 }
+
+
+
 void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
 {
     QWidget *fullScreenWindow = new QWidget();
