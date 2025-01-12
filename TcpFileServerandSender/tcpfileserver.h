@@ -33,6 +33,7 @@ private slots:
     void displayError(QAbstractSocket::SocketError socketError);
 
 private:
+    QMap<QString, int> studentScores; // 儲存學生學號與分數對應的 QMap
     int correctAnswerIndex = -1; // 初始化為 -1 表示未設置
     QTcpServer tcpServer;
     QList<QTcpSocket*> tcpConnections;

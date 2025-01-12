@@ -140,8 +140,7 @@ void TcpFileServer::readClientData()
             clientConnection->disconnectFromHost();
             qDebug() << "學生登入失敗，學號：" << username;
         }
-
-    } else if (true) {
+    } else if (messageType == "answer") {
         QString answer;
         in >> answer;
 
@@ -166,7 +165,8 @@ void TcpFileServer::readClientData()
         bool isCorrect = (answerIndex == this->correctAnswerIndex); // 判斷是否正確
         if (isCorrect) {
             emit studentCorrectAnswer(studentId);  // 發送正確答案信號，攜帶學生學號
-            qDebug() << "學生學號" << studentId << "答對了！";
+            studentScores[studentId] += 10;        // 答對加 10 分（假設有一個 QMap 儲存學生分數）
+            qDebug() << "學生學號" << studentId << "答對了，當前分數：" << studentScores[studentId];
         } else {
             qDebug() << "學生學號" << studentId << "答錯了！";
         }
@@ -177,14 +177,37 @@ void TcpFileServer::readClientData()
         resultStream.setVersion(QDataStream::Qt_4_6);
 
         resultStream << QString("result") << isCorrect; // true 表示答對，false 表示答錯
-
         clientConnection->write(resultBlock);
         clientConnection->flush();
         qDebug() << "已回傳判斷結果給學生，學號：" << studentId;
+
+    } else if (messageType == "updateScore") {
+        // 更新分數請求
+        QString studentId = clientConnection->property("studentId").toString();
+        if (studentId.isEmpty()) {
+            qWarning() << "未能獲取學生學號，無法更新分數";
+            return;
+        }
+
+        int currentScore = studentScores.value(studentId, 0); // 獲取當前分數（默認為 0）
+        qDebug() << "收到學生分數更新請求，學號：" << studentId << " 當前分數：" << currentScore;
+
+        // 回傳當前分數給學生
+        QByteArray scoreBlock;
+        QDataStream scoreStream(&scoreBlock, QIODevice::WriteOnly);
+        scoreStream.setVersion(QDataStream::Qt_4_6);
+
+        scoreStream << QString("updateScore") << currentScore; // 回傳分數
+        clientConnection->write(scoreBlock);
+        clientConnection->flush();
+
+        qDebug() << "已回傳分數給學生，學號：" << studentId << " 分數：" << currentScore;
+
     } else {
         qWarning() << "收到未知的消息類型：" << messageType;
     }
 }
+
 void TcpFileServer::displayError(QAbstractSocket::SocketError socketError)
 {
     Q_UNUSED(socketError);

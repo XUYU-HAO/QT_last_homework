@@ -22,6 +22,8 @@ private slots:
     void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
 
 private:
+    int studentScore = 0;         // 用來儲存學生的分數
+    QLabel *scoreLabel = nullptr; // 用來顯示分數的標籤
     QWidget *waitingWindow; // 用於顯示等待視窗
     int correctAnswerIndex; // 正確答案的索引
     QString questionText;   // 保存題目
