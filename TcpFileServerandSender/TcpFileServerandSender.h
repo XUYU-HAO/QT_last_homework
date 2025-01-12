@@ -20,8 +20,8 @@ private slots:
     void startTeacherMode();
     void startStudentMode();
     void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
-
 private:
+    // 在伺服器端當新學生連線時觸發此信號
     int studentScore = 0;         // 用來儲存學生的分數
     QLabel *scoreLabel = nullptr; // 用來顯示分數的標籤
     QWidget *waitingWindow; // 用於顯示等待視窗

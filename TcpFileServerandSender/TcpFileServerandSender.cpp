@@ -113,31 +113,6 @@ void TcpFileServerandSender::startTeacherMode()
         QPushButton *updateScoresButton = new QPushButton("更新分數", fullScreenWindow);
         updateScoresButton->setFixedSize(200, 50);
         updateScoresButton->setStyleSheet("font-size: 18px; margin-top: 10px;");
-        mainLayout->addWidget(updateScoresButton, 0, Qt::AlignCenter);
-
-        connect(updateScoresButton, &QPushButton::clicked, this, [this, studentTable]() {
-            QList<QTcpSocket *> clientConnections = receiver->getClientConnections();
-
-            for (int row = 0; row < studentTable->rowCount(); ++row) {
-                QTableWidgetItem *idItem = studentTable->item(row, 0);
-                if (idItem) {
-                    QString studentId = idItem->text();
-                    for (auto clientConnection : clientConnections) {
-                        if (clientConnection->property("studentId").toString() == studentId) {
-                            // 向學生端請求分數更新
-                            QByteArray block;
-                            QDataStream out(&block, QIODevice::WriteOnly);
-                            out.setVersion(QDataStream::Qt_4_6);
-
-                            out << QString("updateScore");
-                            clientConnection->write(block);
-                            clientConnection->flush();
-                            qDebug() << "已向學生" << studentId << "請求更新分數";
-                        }
-                    }
-                }
-            }
-        });
 
         // 答題時間設置區域
         QHBoxLayout *timeSettingLayout = new QHBoxLayout();
@@ -165,8 +140,6 @@ void TcpFileServerandSender::startTeacherMode()
 
         connect(timeSlider, &QSlider::valueChanged, timeSpinBox, &QSpinBox::setValue);
         connect(timeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), timeSlider, &QSlider::setValue);
-
-        mainLayout->addLayout(timeSettingLayout);
 
         // 設置題目與選項
         QVBoxLayout *questionLayout = new QVBoxLayout();
@@ -238,8 +211,15 @@ void TcpFileServerandSender::startTeacherMode()
             }
         });
 
-        mainLayout->addWidget(studentTable);
-        mainLayout->addLayout(questionLayout);
+        // Create the horizontal layout to place the tables and the question layout side by side
+        QHBoxLayout *sideBySideLayout = new QHBoxLayout();
+        sideBySideLayout->addWidget(studentTable);
+        sideBySideLayout->addLayout(questionLayout);
+
+        // Add everything to main layout
+        mainLayout->addLayout(sideBySideLayout);
+        mainLayout->addWidget(updateScoresButton);
+        mainLayout->addLayout(timeSettingLayout);
 
         // 設置全屏顯示
         fullScreenWindow->setLayout(mainLayout);
@@ -247,6 +227,7 @@ void TcpFileServerandSender::startTeacherMode()
         fullScreenWindow->showFullScreen();
     });
 }
+
 
 void TcpFileServerandSender::startStudentMode()
 {
