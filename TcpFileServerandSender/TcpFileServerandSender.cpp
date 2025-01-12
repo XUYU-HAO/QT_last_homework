@@ -36,22 +36,26 @@ TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
     connect(teacherButton, &QPushButton::clicked, this, &TcpFileServerandSender::startTeacherMode);
     connect(studentButton, &QPushButton::clicked, this, &TcpFileServerandSender::startStudentMode);
 }
+
 void TcpFileServerandSender::startTeacherMode()
 {
     receiver->show();
 
     connect(receiver, &TcpFileServer::serverStarted, this, [this]() {
         QString courseName = receiver->getCourseName();
+
         this->close();
 
         QWidget *fullScreenWindow = new QWidget();
         QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
 
+        // 課程名稱
         QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
         courseNameLabel->setAlignment(Qt::AlignCenter);
         courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin: 20px;");
         mainLayout->addWidget(courseNameLabel);
 
+        // 學生狀態表
         QTableWidget *studentTable = new QTableWidget(fullScreenWindow);
         studentTable->setColumnCount(3);
         studentTable->setHorizontalHeaderLabels(QStringList() << "學號" << "分數" << "狀態");
@@ -59,8 +63,9 @@ void TcpFileServerandSender::startTeacherMode()
         studentTable->verticalHeader()->setVisible(false);
         studentTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
         studentTable->setSelectionMode(QAbstractItemView::NoSelection);
-        studentTable->setFixedWidth(300);
+        studentTable->setFixedWidth(400);
 
+        // 當學生連線時更新狀態表
         connect(receiver, &TcpFileServer::studentConnected, this, [studentTable](const QString &studentId) {
             bool studentExists = false;
             for (int row = 0; row < studentTable->rowCount(); ++row) {
@@ -89,6 +94,52 @@ void TcpFileServerandSender::startTeacherMode()
             }
         });
 
+        // 當學生答對時更新分數
+        connect(receiver, &TcpFileServer::studentCorrectAnswer, this, [studentTable](const QString &studentId) {
+            for (int row = 0; row < studentTable->rowCount(); ++row) {
+                QTableWidgetItem *idItem = studentTable->item(row, 0);
+                if (idItem && idItem->text() == studentId) {
+                    QTableWidgetItem *scoreItem = studentTable->item(row, 1);
+                    if (scoreItem) {
+                        int currentScore = scoreItem->text().toInt();
+                        scoreItem->setText(QString::number(currentScore + 1)); // 答對加 10 分
+                    }
+                    break;
+                }
+            }
+        });
+
+        // 新增更新分數按鈕
+        QPushButton *updateScoresButton = new QPushButton("更新分數", fullScreenWindow);
+        updateScoresButton->setFixedSize(200, 50);
+        updateScoresButton->setStyleSheet("font-size: 18px; margin-top: 10px;");
+        mainLayout->addWidget(updateScoresButton, 0, Qt::AlignCenter);
+
+        connect(updateScoresButton, &QPushButton::clicked, this, [this, studentTable]() {
+            QList<QTcpSocket *> clientConnections = receiver->getClientConnections();
+
+            for (int row = 0; row < studentTable->rowCount(); ++row) {
+                QTableWidgetItem *idItem = studentTable->item(row, 0);
+                if (idItem) {
+                    QString studentId = idItem->text();
+                    for (auto clientConnection : clientConnections) {
+                        if (clientConnection->property("studentId").toString() == studentId) {
+                            // 向學生端請求分數更新
+                            QByteArray block;
+                            QDataStream out(&block, QIODevice::WriteOnly);
+                            out.setVersion(QDataStream::Qt_4_6);
+
+                            out << QString("updateScore");
+                            clientConnection->write(block);
+                            clientConnection->flush();
+                            qDebug() << "已向學生" << studentId << "請求更新分數";
+                        }
+                    }
+                }
+            }
+        });
+
+        // 答題時間設置區域
         QHBoxLayout *timeSettingLayout = new QHBoxLayout();
 
         QSlider *timeSlider = new QSlider(Qt::Horizontal, fullScreenWindow);
@@ -117,6 +168,7 @@ void TcpFileServerandSender::startTeacherMode()
 
         mainLayout->addLayout(timeSettingLayout);
 
+        // 設置題目與選項
         QVBoxLayout *questionLayout = new QVBoxLayout();
 
         QLabel *questionLabel = new QLabel("題目輸入區", fullScreenWindow);
@@ -147,23 +199,18 @@ void TcpFileServerandSender::startTeacherMode()
 
         questionLayout->addLayout(optionsLayout);
 
-        // 創建題目按鈕區
-        QHBoxLayout *buttonLayout = new QHBoxLayout();
-        QPushButton *closeButton = new QPushButton(QStringLiteral("關閉伺服器"), fullScreenWindow);
-        closeButton->setFixedSize(100, 50);
-        connect(closeButton, &QPushButton::clicked, fullScreenWindow, &QWidget::close);
-        buttonLayout->addWidget(closeButton);
-
         QPushButton *createQuestionButton = new QPushButton(QStringLiteral("創建題目"), fullScreenWindow);
         createQuestionButton->setFixedSize(100, 50);
-        buttonLayout->addWidget(createQuestionButton);
+        questionLayout->addWidget(createQuestionButton);
+        QPushButton *closeButton = new QPushButton(QStringLiteral("關閉伺服器"), fullScreenWindow);
+        connect(closeButton, &QPushButton::clicked, this, [this]() {
+            // 清理邏輯（如保存學生分數）
+            receiver->close();  // 關閉伺服器
+            qDebug() << "伺服器已關閉，準備退出程式。";
+            QApplication::quit();  // 完全退出應用程式
+        });
 
-        // 在這裡禁用按鈕，直到倒計時結束
-        createQuestionButton->setEnabled(true);
-
-        connect(createQuestionButton, &QPushButton::clicked, this, [this, correctAnswerGroup, questionInput, timeSlider, createQuestionButton]() {
-            createQuestionButton->setEnabled(false); // 禁用創建題目按鈕
-
+        connect(createQuestionButton, &QPushButton::clicked, this, [this, correctAnswerGroup, questionInput, timeSlider]() {
             questionText = questionInput->toPlainText();
             optionsText.clear();
 
@@ -189,31 +236,17 @@ void TcpFileServerandSender::startTeacherMode()
                     qDebug() << "已發送題目給學生：" << client->peerAddress().toString();
                 }
             }
-
-            // 啟動倒計時
-            QTimer *timer = new QTimer(this);
-            connect(timer, &QTimer::timeout, this, [this, createQuestionButton]() {
-                // 當倒計時結束，啟用創建題目按鈕
-                createQuestionButton->setEnabled(true);
-            });
-            timer->start(timeSlider->value() * 1000); // 根據選擇的答題時間啟動倒計時
-
         });
 
-        questionLayout->addLayout(buttonLayout);
+        mainLayout->addWidget(studentTable);
+        mainLayout->addLayout(questionLayout);
 
-        QHBoxLayout *contentLayout = new QHBoxLayout();
-        contentLayout->addWidget(studentTable);
-        contentLayout->addLayout(questionLayout);
-
-        mainLayout->addLayout(contentLayout);
-
+        // 設置全屏顯示
         fullScreenWindow->setLayout(mainLayout);
         fullScreenWindow->setStyleSheet("background-color: white;");
         fullScreenWindow->showFullScreen();
     });
 }
-
 
 void TcpFileServerandSender::startStudentMode()
 {
@@ -239,7 +272,7 @@ void TcpFileServerandSender::startStudentMode()
             scoreLabel->setStyleSheet("font-size: 24px; color: blue;");
             waitingLayout->addWidget(scoreLabel);
 
-            // 新增「更新分數」按鈕，移到分數標籤下方
+            // 新增「更新分數」按鈕
             QPushButton *updateScoreButton = new QPushButton("更新分數", waitingWindow);
             updateScoreButton->setFixedSize(200, 50);
             updateScoreButton->setStyleSheet("font-size: 18px;");
@@ -286,37 +319,6 @@ void TcpFileServerandSender::startStudentMode()
         QString messageType;
         in >> messageType;
 
-        if (messageType == "result") {
-            bool isCorrect;
-            in >> isCorrect;
-
-            // 更新分數
-            if (isCorrect) {
-                studentScore += 10; // 答對加 10 分
-                qDebug() << "答對，加分後目前分數：" << studentScore;
-            } else {
-                qDebug() << "答錯，分數保持不變：" << studentScore;
-            }
-
-            // 更新分數標籤
-            if (scoreLabel) {
-                scoreLabel->setText(QString("目前分數: %1").arg(studentScore));
-            }
-        }
-
-        if (messageType == "updateScore") {
-            // 處理伺服器回傳的更新分數訊息
-            int updatedScore;
-            in >> updatedScore;
-
-            studentScore = updatedScore; // 更新本地分數
-            if (scoreLabel) {
-                scoreLabel->setText(QString("目前分數: %1").arg(studentScore));
-            }
-
-            qDebug() << "從伺服器獲取最新分數：" << studentScore;
-        }
-
         if (messageType == "question") {
             if (waitingWindow) {
                 waitingWindow->hide();
@@ -345,16 +347,16 @@ void TcpFileServerandSender::startStudentMode()
                 optionsLayout->addWidget(optionButton, i / 2, i % 2);
 
                 connect(optionButton, &QPushButton::clicked, this, [this, i, correctAnswerIndex, client, questionWindow]() {
-                    bool isCorrect = (i == correctAnswerIndex);
+                    bool isCorrect = (i == correctAnswerIndex); // 判斷是否答對
 
                     QByteArray block;
                     QDataStream out(&block, QIODevice::WriteOnly);
                     out.setVersion(QDataStream::Qt_4_6);
-                    out << QString("answerResult") << isCorrect;
+                    out << QString("answerResult") << isCorrect; // 回傳結果給伺服器
 
                     client->write(block);
                     client->flush();
-                    qDebug() << "答案結果已回傳給伺服器：" << (isCorrect ? "正確" : "錯誤");
+                    qDebug() << "學生端判斷結果已回傳：" << (isCorrect ? "正確" : "錯誤");
 
                     QMessageBox::information(
                         questionWindow,
@@ -401,8 +403,22 @@ void TcpFileServerandSender::startStudentMode()
             questionWindow->setLayout(mainLayout);
             questionWindow->showFullScreen();
         }
+
+        if (messageType == "updateScore") {
+            // 處理伺服器回傳的分數更新
+            int updatedScore;
+            in >> updatedScore;
+
+            studentScore = updatedScore; // 更新本地分數
+            if (scoreLabel) {
+                scoreLabel->setText(QString("目前分數: %1").arg(studentScore));
+            }
+
+            qDebug() << "從伺服器獲取最新分數：" << studentScore;
+        }
     });
 }
+
 
 void TcpFileServerandSender::switchToFullScreen(const QString &courseName)
 {

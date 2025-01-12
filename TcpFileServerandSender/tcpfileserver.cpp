@@ -140,52 +140,40 @@ void TcpFileServer::readClientData()
             clientConnection->disconnectFromHost();
             qDebug() << "學生登入失敗，學號：" << username;
         }
-    } else if (messageType == "answer") {
-        QString answer;
-        in >> answer;
+    } else if (messageType == "answerResult") {
+        bool isCorrect;
+        in >> isCorrect;
 
-        QString studentId = clientConnection->property("studentId").toString();
-        if (studentId.isEmpty()) {
-            qWarning() << "未能獲取學生學號，無法處理答案";
-            return;
-        }
-
-        qDebug() << "收到學生答案，學號：" << studentId << " 答案索引：" << answer;
-
-        // 確保正確答案索引已設定
-        if (this->correctAnswerIndex < 0) {
-            qWarning() << "未設定正確答案索引，無法判斷答案正確性！";
-            return;
-        }
-
-        // 判斷答案是否正確
-        int answerIndex = answer.toInt();
-        qDebug() << "學生答案索引：" << answerIndex << " 正確答案索引：" << this->correctAnswerIndex;
-
-        bool isCorrect = (answerIndex == this->correctAnswerIndex); // 判斷是否正確
-        if (isCorrect) {
-            emit studentCorrectAnswer(studentId);  // 發送正確答案信號，攜帶學生學號
-            studentScores[studentId] += 10;        // 答對加 10 分（假設有一個 QMap 儲存學生分數）
-            qDebug() << "學生學號" << studentId << "答對了，當前分數：" << studentScores[studentId];
-        } else {
-            qDebug() << "學生學號" << studentId << "答錯了！";
-        }
-
-        // 回傳判斷結果給學生
-        QByteArray resultBlock;
-        QDataStream resultStream(&resultBlock, QIODevice::WriteOnly);
-        resultStream.setVersion(QDataStream::Qt_4_6);
-
-        resultStream << QString("result") << isCorrect; // true 表示答對，false 表示答錯
-        clientConnection->write(resultBlock);
-        clientConnection->flush();
-        qDebug() << "已回傳判斷結果給學生，學號：" << studentId;
-
-    } else if (messageType == "updateScore") {
-        // 更新分數請求
         QString studentId = clientConnection->property("studentId").toString();
         if (studentId.isEmpty()) {
             qWarning() << "未能獲取學生學號，無法更新分數";
+            return;
+        }
+
+        qDebug() << "收到學生回答結果，學號：" << studentId << " 結果：" << (isCorrect ? "正確" : "錯誤");
+
+        if (isCorrect) {
+            studentScores[studentId] += 1; // 答對加 1 分
+            emit studentCorrectAnswer(studentId); // 發送正確答案信號
+        }
+
+        qDebug() << "學生學號：" << studentId << " 分數已更新：" << studentScores[studentId];
+
+        // 回傳更新後的分數給學生
+        QByteArray block;
+        QDataStream out(&block, QIODevice::WriteOnly);
+        out.setVersion(QDataStream::Qt_4_6);
+
+        out << QString("updateScore") << studentScores[studentId];
+        clientConnection->write(block);
+        clientConnection->flush();
+
+        qDebug() << "分數已回傳給學生，學號：" << studentId;
+    } else if (messageType == "updateScore") {
+        // 處理分數更新請求
+        QString studentId = clientConnection->property("studentId").toString();
+        if (studentId.isEmpty()) {
+            qWarning() << "未能獲取學生學號，無法處理分數更新請求";
             return;
         }
 
@@ -197,12 +185,11 @@ void TcpFileServer::readClientData()
         QDataStream scoreStream(&scoreBlock, QIODevice::WriteOnly);
         scoreStream.setVersion(QDataStream::Qt_4_6);
 
-        scoreStream << QString("updateScore") << currentScore; // 回傳分數
+        scoreStream << QString("updateScore") << currentScore;
         clientConnection->write(scoreBlock);
         clientConnection->flush();
 
         qDebug() << "已回傳分數給學生，學號：" << studentId << " 分數：" << currentScore;
-
     } else {
         qWarning() << "收到未知的消息類型：" << messageType;
     }
