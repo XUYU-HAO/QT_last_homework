@@ -2,6 +2,10 @@
 #define TCPFILESERVERANDSENDER_H
 
 #include <QWidget>
+#include <QVector>
+#include <QLineEdit>
+#include <QStringList>
+
 #include "TcpFileSender.h"
 #include "TcpFileServer.h"
 
@@ -12,20 +16,19 @@ class TcpFileServerandSender : public QWidget
 public:
     explicit TcpFileServerandSender(QWidget *parent = nullptr);
 
-
 private slots:
     void startTeacherMode();
     void startStudentMode();
     void switchToFullScreen(const QString &courseName); // 確保接受 QString 引數
 
 private:
-    QWidget *waitingWindow; // 用於顯示等待視
-    int correctAnswerIndex;
-    QString questionText;        // 保存題目
-    QStringList optionsText;     // 保存選項
-    TcpFileSender *sender;
-    TcpFileServer *receiver;
-    QVector<QLineEdit*> optionInputs;      // 保存選項輸入框指標
+    QWidget *waitingWindow; // 用於顯示等待視窗
+    int correctAnswerIndex; // 正確答案的索引
+    QString questionText;   // 保存題目
+    QStringList optionsText; // 保存選項
+    TcpFileSender *sender;   // 連接學生端的 TcpFileSender
+    TcpFileServer *receiver; // 監聽教師端的 TcpFileServer
+    QVector<QLineEdit*> optionInputs; // 保存選項輸入框指標
 };
 
 #endif // TCPFILESERVERANDSENDER_H
