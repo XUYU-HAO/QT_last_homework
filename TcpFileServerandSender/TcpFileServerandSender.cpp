@@ -36,26 +36,22 @@ TcpFileServerandSender::TcpFileServerandSender(QWidget *parent)
     connect(teacherButton, &QPushButton::clicked, this, &TcpFileServerandSender::startTeacherMode);
     connect(studentButton, &QPushButton::clicked, this, &TcpFileServerandSender::startStudentMode);
 }
-
 void TcpFileServerandSender::startTeacherMode()
 {
     receiver->show();
 
     connect(receiver, &TcpFileServer::serverStarted, this, [this]() {
         QString courseName = receiver->getCourseName();
-
         this->close();
 
         QWidget *fullScreenWindow = new QWidget();
         QVBoxLayout *mainLayout = new QVBoxLayout(fullScreenWindow);
 
-        // 課程名稱
         QLabel *courseNameLabel = new QLabel(courseName, fullScreenWindow);
         courseNameLabel->setAlignment(Qt::AlignCenter);
         courseNameLabel->setStyleSheet("font-size: 36px; font-weight: bold; margin: 20px;");
         mainLayout->addWidget(courseNameLabel);
 
-        // 學生狀態表
         QTableWidget *studentTable = new QTableWidget(fullScreenWindow);
         studentTable->setColumnCount(3);
         studentTable->setHorizontalHeaderLabels(QStringList() << "學號" << "分數" << "狀態");
@@ -93,7 +89,6 @@ void TcpFileServerandSender::startTeacherMode()
             }
         });
 
-        // 答題時間設定區域
         QHBoxLayout *timeSettingLayout = new QHBoxLayout();
 
         QSlider *timeSlider = new QSlider(Qt::Horizontal, fullScreenWindow);
@@ -122,7 +117,6 @@ void TcpFileServerandSender::startTeacherMode()
 
         mainLayout->addLayout(timeSettingLayout);
 
-        // 題目與選項設置區域
         QVBoxLayout *questionLayout = new QVBoxLayout();
 
         QLabel *questionLabel = new QLabel("題目輸入區", fullScreenWindow);
@@ -153,7 +147,7 @@ void TcpFileServerandSender::startTeacherMode()
 
         questionLayout->addLayout(optionsLayout);
 
-        // 操作按鈕區域
+        // 創建題目按鈕區
         QHBoxLayout *buttonLayout = new QHBoxLayout();
         QPushButton *closeButton = new QPushButton(QStringLiteral("關閉伺服器"), fullScreenWindow);
         closeButton->setFixedSize(100, 50);
@@ -164,7 +158,12 @@ void TcpFileServerandSender::startTeacherMode()
         createQuestionButton->setFixedSize(100, 50);
         buttonLayout->addWidget(createQuestionButton);
 
-        connect(createQuestionButton, &QPushButton::clicked, this, [this, correctAnswerGroup, questionInput, timeSlider]() {
+        // 在這裡禁用按鈕，直到倒計時結束
+        createQuestionButton->setEnabled(true);
+
+        connect(createQuestionButton, &QPushButton::clicked, this, [this, correctAnswerGroup, questionInput, timeSlider, createQuestionButton]() {
+            createQuestionButton->setEnabled(false); // 禁用創建題目按鈕
+
             questionText = questionInput->toPlainText();
             optionsText.clear();
 
@@ -190,6 +189,15 @@ void TcpFileServerandSender::startTeacherMode()
                     qDebug() << "已發送題目給學生：" << client->peerAddress().toString();
                 }
             }
+
+            // 啟動倒計時
+            QTimer *timer = new QTimer(this);
+            connect(timer, &QTimer::timeout, this, [this, createQuestionButton]() {
+                // 當倒計時結束，啟用創建題目按鈕
+                createQuestionButton->setEnabled(true);
+            });
+            timer->start(timeSlider->value() * 1000); // 根據選擇的答題時間啟動倒計時
+
         });
 
         questionLayout->addLayout(buttonLayout);
@@ -205,6 +213,7 @@ void TcpFileServerandSender::startTeacherMode()
         fullScreenWindow->showFullScreen();
     });
 }
+
 
 void TcpFileServerandSender::startStudentMode()
 {
